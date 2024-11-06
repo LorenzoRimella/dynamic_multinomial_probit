@@ -1,0 +1,124 @@
+library(mvtnorm)
+library(TruncatedNormal)
+library(magic)
+
+library(MomTrunc)
+library(tlrmvnmvt)
+
+SUN_site_i_parameters <- function(i, x_t, y_t, r_minus_i, Q_minus_i, parameters)
+{
+  
+  L   = dim(x_t)[3]
+  
+  P_minus_i = solve(Q_minus_i)
+  a_minus_i = P_minus_i %*% r_minus_i
+    
+  xi = a_minus_i
+  Omega = P_minus_i
+  
+  omega = diag(sqrt(diag(Omega)))
+  inv_omega = diag(1/sqrt(diag(Omega)))
+  barOmega  = inv_omega %*% Omega %*% inv_omega
+  
+  barX   = X_minus_l(x_t[i-1,,], y_t[i-1], L)
+  Lambda = V_minus_l(y_t[i-1], L) %*% parameters$Sigma %*% t(V_minus_l(y_t[i-1], L))
+  
+  XOX_Lambda = barX %*% Omega %*% t(barX) + Lambda
+  s = diag(sqrt(diag(XOX_Lambda)))
+  inv_s = diag(1/sqrt(diag(XOX_Lambda)))
+  Delta = barOmega %*% omega %*% t(barX) %*% inv_s
+  
+  gamma = inv_s %*% barX %*% a_minus_i
+  Gamma = inv_s %*% XOX_Lambda %*% inv_s
+  
+  return(list(xi_t = xi, 
+              Omega_t = Omega, omega_t = omega, barOmega_t = barOmega, 
+              s_t = s, Delta_t = Delta, 
+              gamma_t = gamma, Gamma_t = Gamma))
+}
+
+site_i_update <- function(i, x_t, y_t, r, Q, parameters, MC_samples)
+{
+  r_minus_i = t(t(apply(r[-i,], 2, sum)))
+  Q_minus_i = apply(Q[-i,,], MARGIN = c(2,3), sum)
+  
+  SUN_parameters_list_i = SUN_site_i_parameters(i, x_t, y_t, r_minus_i, Q_minus_i, parameters)
+  
+  SUN_sample = rSUN(SUN_parameters_list_i, MC_samples) 
+  mu_i = t(t(apply(SUN_sample, 1, mean)))
+  Sigma_i = cov(t(SUN_sample))
+  
+  Q[i,,] = solve(Sigma_i) - Q_minus_i
+  r[i,]  = (Q_minus_i + Q[i,,]) %*% mu_i - r_minus_i
+  
+  return(list(r = r, Q = Q))
+}
+
+EP_sampling_correction <- function(x_t, y_t, a_t_tm1, P_t_tm1, parameters, EP_iterations, MC_samples)
+{
+  L = dim(x_t)[3]
+  m_t = dim(x_t)[1]
+  
+  Q_0 = solve(P_t_tm1)
+  r_0 = Q_0 %*% a_t_tm1
+  
+  Q = array(0, dim = c(m_t+1, length(r_0), length(r_0)))
+  r = array(0, dim = c(m_t+1, length(r_0)))
+  
+  Q[1,,] = Q_0
+  r[1,]  = r_0
+  
+  for(iteration in 1:EP_iterations)
+  {
+    for(i in 2:(m_t+1))
+    {
+      EP_parameters = site_i_update(i, x_t, y_t, r, Q, parameters, MC_samples)
+      Q = EP_parameters$Q
+      r = EP_parameters$r
+    } 
+  }
+  
+  r_sum = t(t(apply(r, 2, sum)))
+  Q_sum = apply(Q, MARGIN = c(2,3), sum)
+
+  P_t = solve(Q_sum)
+  a_t = P_t %*% r_sum
+  
+  return(list(a_t = a_t,
+              P_t = P_t))
+}
+
+
+EP_sampling_filter <- function(data, parameters, EP_iterations = 5, MC_samples = 1000)
+{
+  L = dim(parameters$Sigma)[1]
+  Time = length(data$Y)
+  
+  V_minus_pre_computed = lapply(seq(0, L), function(i) V_minus_l(i,L))
+  
+  a_history = array(NA, dim = c(Time+1, dim(parameters$a_0)[1]))
+  P_history = array(NA, dim = c(Time+1, dim(parameters$a_0)[1], dim(parameters$a_0)[1]))
+  
+  a_history[1,]  = parameters$a_0
+  P_history[1,,] = parameters$P_0
+  log_likelihood = 0
+  prediction_prob_history = list() #array(NA, dim = c(Time, L))
+  
+  for(t in 1:Time)
+  {
+    #print(t)
+    EP_prediction_parameters = ADF_prediction(a_history[t,], P_history[t,,], parameters)
+    a_t_tm1 = EP_prediction_parameters$a_t_tm1
+    P_t_tm1 = EP_prediction_parameters$P_t_tm1
+    
+    y_t = data$Y[[t]]
+    x_t = data$X[[t]]
+    EP_correction_output = EP_sampling_correction(x_t, y_t, a_t_tm1, P_t_tm1, parameters, EP_iterations, MC_samples)
+    
+    a_history[t+1,]  = EP_correction_output$a_t
+    P_history[t+1,,] = EP_correction_output$P_t
+    
+  }
+  
+  return(list(a_history = a_history, P_history = P_history))
+}
