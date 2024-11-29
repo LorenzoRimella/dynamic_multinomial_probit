@@ -172,11 +172,11 @@ rSUN <- function(SUN_correction_parameters_list, n=1)
   
   if(m==1){ # when m == 1 rtmvnorm returns the samples as a row vector (i.e. one sample per column)
     sampleTruncNorm = TruncatedNormal::rtmvnorm(n = n, 
-                                                mu = rep(0,m), sigma = Gamma_t, 
+                                                mu = rep(0,m), sigma = (Gamma_t+t(Gamma_t))/2, 
                                                 lb = -SUN_correction_parameters_list$gamma_t, ub = rep(Inf,m))
   } else{ # when m > 1 rtmvnorm returns the samples in an n x m matrix (i.e. one sample per row) 
     sampleTruncNorm = t(TruncatedNormal::rtmvnorm(n = n, 
-                                                  mu = rep(0,m), sigma = Gamma_t, 
+                                                  mu = rep(0,m), sigma = (Gamma_t+t(Gamma_t))/2, 
                                                   lb = -SUN_correction_parameters_list$gamma_t, ub = rep(Inf,m)))
   }
   
@@ -188,7 +188,7 @@ rSUN <- function(SUN_correction_parameters_list, n=1)
   return(sampleSUN)
 }
 
-ADF_sampling_correction <- function(x_t, y_t, a_t_tm1, P_t_tm1, parameters, MC_samples = 1000)
+ADF_sampling_correction <- function(x_t, y_t, a_t_tm1, P_t_tm1, parameters, MC_samples = 5000)
 {
   L = dim(x_t)[3]
   m_t = dim(x_t)[1]

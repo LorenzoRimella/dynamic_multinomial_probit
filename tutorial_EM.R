@@ -4,12 +4,14 @@ library(tidyr)
 library(dplyr)
 library(gridExtra)
 
-source("R_directory/model.R")
-source("R_directory/multinomial_probit_sampling_filter.R")
-source("R_directory/multinomial_probit_filter_exact.R")
-source("R_directory/multinomial_probit_filter_EP.R")
-source("R_directory/multinomial_probit_gaussian_smoothing.R")
-source("R_directory/multinomial_probit_EM.R")
+set.seed(5)
+
+source("R_directory/dynamic_multinomial_probit/model.R")
+source("R_directory/dynamic_multinomial_probit/multinomial_probit_sampling_filter.R")
+source("R_directory/dynamic_multinomial_probit/multinomial_probit_filter_exact.R")
+source("R_directory/dynamic_multinomial_probit/multinomial_probit_filter_EP.R")
+source("R_directory/dynamic_multinomial_probit/multinomial_probit_gaussian_smoothing.R")
+source("R_directory/dynamic_multinomial_probit/multinomial_probit_EM.R")
 
 L = 2 # number of choices
 Time= 50 # number of time steps
@@ -28,12 +30,14 @@ a_0 = matrix(rep(0, beta_size), ncol = 1)
 P_0 = 0.1*diag(beta_size)
 
 G = 0.3*diag(beta_size)
-G[2,1] = -0.3
-G[1,2] = -0.3
+# G[2,1] = -0.3
+# G[1,2] = -0.3
 
 W = diag(beta_size)/2
 
 Sigma = matrix(0.0, ncol = L, nrow = L) + 0.1*diag(L)
+Sigma[cbind(1:(L - 1), 2:L)] = 0.01
+Sigma = Sigma +t(Sigma)
 
 parameters = list(a_0 = a_0, P_0 = P_0, G = G, W = W, Sigma = Sigma)
 
@@ -84,16 +88,20 @@ plot_2 =ggplot(df_beta_long, aes(x = Time, y = Value, color = Type)) +
 #   axis.title.y = element_blank()  # Remove the default y-axis title
 # )
 
+grid.arrange(plot_1, plot_2, ncol = 1)
+
 ADF_filter_output_exact = ADF_sampling_filter(data_multinomial_probit, parameters)
 
 ADF_filter_output_exact$log_likelihood
 
-initial_parameters = list(a_0 = a_0, P_0 = P_0, G = 0.8*diag(beta_size), W = 2*diag(beta_size), Sigma = Sigma)
+initial_parameters = list(a_0 = a_0, P_0 = P_0, G = G, W = W, Sigma = diag(L))
+
+# initial_parameters = list(a_0 = a_0, P_0 = P_0, G = 0.8*diag(beta_size), W = 2*diag(beta_size), Sigma = Sigma)
 # initial_parameters = list(a_0 = a_0, P_0 = P_0, G = 0.8*diag(beta_size), W = W, Sigma = Sigma)
 
 EM_parameters = multinomial_probit_EM(data_multinomial_probit, ADF_sampling_filter, initial_parameters, 100)
 
-ADF_filter_output_EM = ADF_sampling_filter(data_multinomial_probit, EM_parameters)
+ADF_filter_output_EM = ADF_sampling_filter(data_multinomial_probit, EM_parameters, 30)
 
 ADF_filter_output_EM$log_likelihood
 
@@ -143,3 +151,4 @@ ggplot(plot_data, aes(x = x)) +
   theme_minimal() +
   theme( panel.spacing = unit(1, "lines"))+
   labs(x = "Time", y = "Beta")    
+

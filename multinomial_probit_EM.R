@@ -1,18 +1,24 @@
+# library(einsum)
 
 multinomial_probit_EM <- function(data, filter, initial_parameters, EM_iterations = 100)
 {
   Time = length(data$Y)
+  sum_m_t = sum(sapply(data$Y, length)) #Reduce("+", lapply(seq(1, Time), function(t) length(data$Y[[t]])))
   
   parameters_current = initial_parameters
   
   for(iteration in 1:EM_iterations)
   {
-    print(iteration)
+    print(paste("Iteration nr ", iteration))
     filter_output = filter(data, parameters_current)
-    smoother_output = Gaussian_smoother(parameters_current, filter_output)
+    smoother_output = Gaussian_smoother(data, parameters_current, filter_output, "smoother")
     print(filter_output$log_likelihood)
-    print(parameters_current$G)
-    print(parameters_current$W)
+    # print("Matrix G")
+    # print(parameters_current$G)
+    # print("Matrix W")
+    # print(parameters_current$W)
+    print("Matrix Sigma")
+    print(parameters_current$Sigma)
     
     a_0_Tm1_T = smoother_output$a_history[1:Time,]
     a_1_T_T   = smoother_output$a_history[2:(Time+1),]
@@ -28,17 +34,28 @@ multinomial_probit_EM <- function(data, filter, initial_parameters, EM_iteration
                                              function(t) P_0_Tm1_T[t,,] + a_0_Tm1_T[t,] %*% t(a_0_Tm1_T[t,])))
     
     new_G = sum_barGP_a_t_tm1_T %*% solve(sum_P_a_tm1_tm1_T)
-    
+
     new_W = (1/Time)*Reduce("+", lapply(seq(1, Time),
                                         function(t) P_1_T_T[t,,] + a_1_T_T[t,] %*% t(a_1_T_T[t,])
                                                     - J_0_T_T[t,,] %*% P_1_T_T[t,,] %*% t(new_G) - a_1_T_T[t,] %*% t(a_0_Tm1_T[t,]) %*% t(new_G)
                                                     - t(J_0_T_T[t,,] %*% P_1_T_T[t,,] %*% t(new_G) + a_1_T_T[t,] %*% t(a_0_Tm1_T[t,]) %*% t(new_G))
                                                     + new_G %*% (P_0_Tm1_T[t,,] + a_0_Tm1_T[t,] %*% t(a_0_Tm1_T[t,])) %*% t(new_G)))
 
-    # new_W = parameters_current$W
+    eps_SUN_sample = lapply(seq(1, Time), function(t) lapply(seq(1, length(data$Y[[t]])), function(i) rSUN(smoother_output$eps_history[[t]][[i]], 5000)))
+    eps_second_moment = lapply(seq(1, Time), function(t) lapply(seq(1, length(data$Y[[t]])), function(i) cov(t(eps_SUN_sample[[t]][[i]])) + (t(t(apply(eps_SUN_sample[[t]][[i]], 1, mean))) %*% t(apply(eps_SUN_sample[[t]][[i]], 1, mean)))))
     
-    parameters_current$G = new_G
-    parameters_current$W = (new_W + t(new_W))/2
+    # eps_second_moment = lapply(seq(1, Time), function(t) lapply(seq(1, length(data$Y[[t]])), function(i) einsum("in,jn->ij", eps_SUN_sample[[t]][[i]], eps_SUN_sample[[t]][[i]])/1000))
+    
+    new_Sigma = Reduce("+", lapply(seq(1, Time), function(t) Reduce("+", eps_second_moment[[t]])))/sum_m_t
+
+    new_W = parameters_current$W
+    new_G = parameters_current$G
+    # new_Sigma = parameters_current$Sigma
+    
+    # parameters_current$G = new_G
+    # parameters_current$W = (new_W + t(new_W))/2
+    parameters_current$Sigma = (new_Sigma + t(new_Sigma))/2
+    
   }
   
   return(parameters_current)
