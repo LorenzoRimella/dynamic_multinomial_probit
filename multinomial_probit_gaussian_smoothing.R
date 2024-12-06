@@ -29,7 +29,7 @@ SUN_translator <- function(x_t, y_t, a_t_T, P_t_T, parameters)
   return(output_SUN)
 }
 
-Gaussian_smoother <- function(data, parameters, Gaussian_filter, type = "smoother")
+Gaussian_smoother <- function(data, parameters, Gaussian_filter, Gaussian_prior, type = "smoother")
 {
   Time = dim(Gaussian_filter$a_history)[1]-1
   
@@ -59,12 +59,13 @@ Gaussian_smoother <- function(data, parameters, Gaussian_filter, type = "smoothe
     y_t = data$Y[[Time-t+1]]
     x_t = data$X[[Time-t+1]]
     
-    if(type=="smoother"){
-      eps_smoothing_t = SUN_translator(x_t, y_t, a_smoothing_history[Time-t+2,], P_smoothing_history[Time-t+2,,], parameters)
-    }
-    else{
-      eps_smoothing_t = SUN_translator(x_t, y_t, a_tp1_t, P_tp1_t, parameters)
-    }
+    # if(type=="smoother"){
+    #   eps_smoothing_t = SUN_translator(x_t, y_t, a_smoothing_history[Time-t+2,], P_smoothing_history[Time-t+2,,], parameters)
+    # }
+    # else{
+    #   eps_smoothing_t = SUN_translator(x_t, y_t, a_tp1_t, P_tp1_t, parameters)
+    # }
+    eps_smoothing_t = SUN_translator(x_t, y_t, Gaussian_prior$a_history[Time-t+2,], Gaussian_prior$P_history[Time-t+2,,], parameters)
     
     eps_smoothing_history[[Time-t+1]] = eps_smoothing_t
   }

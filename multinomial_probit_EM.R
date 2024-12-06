@@ -1,5 +1,32 @@
 # library(einsum)
 
+gaussian_prior <- function(data, parameters)
+{
+  L = dim(parameters$Sigma)[1]
+  Time = length(data$Y)
+  
+  a_history = array(NA, dim = c(Time+1, dim(parameters$a_0)[1]))
+  P_history = array(NA, dim = c(Time+1, dim(parameters$a_0)[1], dim(parameters$a_0)[1]))
+  
+  a_history[1,]  = parameters$a_0
+  P_history[1,,] = parameters$P_0
+  
+  for(t in 1:Time)
+  {
+    #print(t)
+    ADF_prediction_parameters = ADF_prediction(a_history[t,], P_history[t,,], parameters)
+    a_t_tm1 = ADF_prediction_parameters$a_t_tm1
+    P_t_tm1 = ADF_prediction_parameters$P_t_tm1
+
+    
+    a_history[t+1,]  = a_t_tm1
+    P_history[t+1,,] = P_t_tm1
+    
+  }
+  
+  return(list(a_history = a_history, P_history = P_history))
+}
+
 multinomial_probit_EM <- function(data, filter, initial_parameters, EM_iterations = 100)
 {
   Time = length(data$Y)
@@ -11,7 +38,8 @@ multinomial_probit_EM <- function(data, filter, initial_parameters, EM_iteration
   {
     print(paste("Iteration nr ", iteration))
     filter_output = filter(data, parameters_current)
-    smoother_output = Gaussian_smoother(data, parameters_current, filter_output, "smoother")
+    prior_output  = gaussian_prior(data, parameters)
+    smoother_output = Gaussian_smoother(data, parameters_current, filter_output, prior_output, "smoother")
     print(filter_output$log_likelihood)
     # print("Matrix G")
     # print(parameters_current$G)
