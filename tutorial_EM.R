@@ -17,12 +17,12 @@ source("multinomial_probit_gaussian_smoothing.R")
 source("multinomial_probit_EM.R")
 
 L = 2 # number of choices
-Time= 50 # number of time steps
+Time= 2 # number of time steps
 
 p = 2 # number of subject dependent covariate
 
-N_max = 10 # maximum number of customers
-lambda_M = 5
+N_max = 20 # maximum number of customers
+lambda_M = 10
 hyperparameters = list(lambda_M = lambda_M, N_max = N_max)
 
 X_cov = matrix(runif(N_max*p, -0.5, 0.5), nrow = N_max, ncol = p)
