@@ -1,17 +1,20 @@
+rm(list=ls())
+# Set the directory to the path of the current script
+library(rstudioapi)
+setwd(dirname(rstudioapi::getSourceEditorContext()$path))
+
 library(ggplot2)
 library(reshape2)
 library(tidyr)
 library(dplyr)
 library(gridExtra)
 
-set.seed(5)
-
-source("R_directory/dynamic_multinomial_probit/model.R")
-source("R_directory/dynamic_multinomial_probit/multinomial_probit_sampling_filter.R")
-source("R_directory/dynamic_multinomial_probit/multinomial_probit_filter_exact.R")
-source("R_directory/dynamic_multinomial_probit/multinomial_probit_filter_EP.R")
-source("R_directory/dynamic_multinomial_probit/multinomial_probit_gaussian_smoothing.R")
-source("R_directory/dynamic_multinomial_probit/multinomial_probit_EM.R")
+source("model.R")
+source("multinomial_probit_sampling_filter.R")
+source("multinomial_probit_filter_exact.R")
+source("multinomial_probit_filter_EP.R")
+source("multinomial_probit_gaussian_smoothing.R")
+source("multinomial_probit_EM.R")
 
 L = 2 # number of choices
 Time= 50 # number of time steps
@@ -60,7 +63,7 @@ data_list <- lapply(seq_along(data_multinomial_probit$Y),
 df_y <- do.call(rbind, data_list)
 names(df_y) <- c("Category", "Count", "Time")  # Rename columns
 df_y$Time <- as.factor(df_y$Time) 
-df_y$Category = factor(df_y$Category, levels = c("0", "1", "2", "3", "4"))
+df_y$Category = factor(df_y$Category)#, levels = c("0", "1", "2", "3", "4"))
 
 # Plotting the distribution over time using stacked bars
 plot_1 = ggplot(df_y, aes(x = Time, y = Count, fill = Category)) +
@@ -88,7 +91,12 @@ plot_2 =ggplot(df_beta_long, aes(x = Time, y = Value, color = Type)) +
 #   axis.title.y = element_blank()  # Remove the default y-axis title
 # )
 
-grid.arrange(plot_1, plot_2, ncol = 1)
+plot_3 =ggplot(df_beta_long, aes(x = Time, y = Value, color = Column)) +
+  geom_line(alpha = 0.8) +
+  labs(x = "Time", y = "Beta") +
+  theme(legend.position="none")
+
+grid.arrange(plot_1, plot_3, ncol = 1)
 
 ADF_filter_output_exact = ADF_sampling_filter(data_multinomial_probit, parameters)
 
