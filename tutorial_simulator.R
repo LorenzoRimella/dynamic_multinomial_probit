@@ -4,8 +4,8 @@ library(tidyr)
 library(dplyr)
 library(gridExtra)
 
-source("R_directory/model.R")
-source("R_directory/multinomial_probit_sampling_filter.R")
+source("R_directory/dynamic_multinomial_probit/model.R")
+source("R_directory/dynamic_multinomial_probit/multinomial_probit_sampling_filter.R")
 
 # COMMENTS:
 # - maybe consider the covariates of the expedia dataset directly
@@ -94,11 +94,11 @@ grid.arrange(plot_1, plot_2, ncol = 1)
 
 ADF_filter_sampler_output = ADF_sampling_filter(data_multinomial_probit, parameters)
 
-source("R_directory/multinomial_probit_filter_exact.R")
+source("R_directory/dynamic_multinomial_probit/multinomial_probit_filter_exact.R")
 
-filter_exact_output = exact_filter(data_multinomial_probit, parameters, 15)
+filter_exact_output = exact_filter(data_multinomial_probit, parameters, 10)
 
-source("R_directory/multinomial_probit_filter_EP.R")
+source("R_directory/dynamic_multinomial_probit/multinomial_probit_filter_EP.R")
 
 EP_filter_output = EP_sampling_filter(data_multinomial_probit, parameters, EP_iterations =1)
 

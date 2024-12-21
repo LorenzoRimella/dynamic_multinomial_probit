@@ -26,10 +26,7 @@ Phi_old <- function(mu, Sigma)
     return(mvtnorm::pmvnorm(lower = lower_lim, upper = mu[,1], mean = std_mean, sigma = Sigma, keepAttr = F))
   }
   
-  # else if(isSymmetric(round(Sigma, 4)))
-  # {return(mvtnorm::pmvnorm(lower = lower_lim, upper = mu[,1], mean = std_mean, sigma = round(Sigma, 4), keepAttr = F))}
-  # 
-  else #if(isSymmetric(round(Sigma, 4))==FALSE)
+  else 
   { 
     Sigma_copy = Sigma
     Sigma_copy[lower.tri(Sigma)] = 0
@@ -147,6 +144,37 @@ SUN_correction_prediction_parameters <- function(x_t, a_t_tm1, P_t_tm1, paramete
   return(list(gamma_t = gamma_t, Gamma_t = Gamma_t))
 }
 
+# is_positive_semidefinite <- function(mat) {
+#   # Check if the matrix is symmetric
+#   if (!isSymmetric(mat)) {
+#     return(FALSE)
+#   }
+# 
+#   # Calculate eigenvalues
+#   eigenvalues <- eigen(mat, only.values = TRUE)$values
+# 
+#   # Check if all eigenvalues are non-negative
+#   all(eigenvalues > 0) 
+# }
+# 
+# make_positive_semidefinite <- function(mat) {
+# 
+#   # print("Modify to positive semidefinite")
+#   # Ensure the matrix is symmetric
+#   mat <- (mat + t(mat)) / 2
+# 
+#   # Perform eigen decomposition
+#   eig <- eigen(mat)
+# 
+#   # Replace negative eigenvalues with zero
+#   eig$values[eig$values <= 0] <- 1e-8
+# 
+#   # Reconstruct the matrix
+#   mat_psd <- eig$vectors %*% diag(eig$values) %*% t(eig$vectors)
+# 
+#   return(mat_psd)
+# }
+
 rSUN <- function(SUN_correction_parameters_list, n=1) 
 {
   d = length(SUN_correction_parameters_list$xi_t)
@@ -159,16 +187,22 @@ rSUN <- function(SUN_correction_parameters_list, n=1)
   }
   
   omDe = SUN_correction_parameters_list$omega_t%*%SUN_correction_parameters_list$Delta_t
-  # apply Tikhonov regularization
-  Tikhonov_reg = diag(1e-8, nrow(SUN_correction_parameters_list$Gamma_t))
   
-  Gamma_t = SUN_correction_parameters_list$Gamma_t #(SUN_correction_parameters_list$Gamma_t+t(SUN_correction_parameters_list$Gamma_t))/2
+  Gamma_t = SUN_correction_parameters_list$Gamma_t 
+  # if(!is_positive_semidefinite(Gamma_t))
+  # {
+  #   Gamma_t = make_positive_semidefinite(Gamma_t)
+  # }
+  
   invGamma = solve(Gamma_t)
   
   PsiDel = SUN_correction_parameters_list$Omega_t-omDe%*%invGamma%*%t(omDe)
-  PsiDel = (PsiDel+t(PsiDel))/2
+  # if(!is_positive_semidefinite(PsiDel))
+  # {
+  #   PsiDel = make_positive_semidefinite(PsiDel)
+  # }
   
-  sampleMultNorm=t(mvtnorm::rmvnorm(n = n, mean = rep(0,d), sigma = PsiDel))
+  sampleMultNorm=t(mvtnorm::rmvnorm(n = n, mean = rep(0,d), sigma = (PsiDel+t(PsiDel))/2))
   
   if(m==1){ # when m == 1 rtmvnorm returns the samples as a row vector (i.e. one sample per column)
     sampleTruncNorm = TruncatedNormal::rtmvnorm(n = n, 
@@ -202,34 +236,9 @@ ADF_sampling_correction <- function(x_t, y_t, a_t_tm1, P_t_tm1, parameters, MC_s
                                                            function(j)  Phi(SUN_correction_prediction_parameters_list$gamma_t[[i]][[j]], 
                                                                             SUN_correction_prediction_parameters_list$Gamma_t[[i]][[j]])))
   
-  # prediction_prob = apply(prediction_prob, 1, mean)
-  
-  #start = Sys.time()
+
   SUN_sample = rSUN(SUN_correction_parameters_list, MC_samples) 
-  #print(Sys.time()-start)
-  #Gamma_t = (SUN_correction_parameters_list$Gamma_t + t(SUN_correction_parameters_list$Gamma_t))/2
-  
-  #start = Sys.time()
-  #SUN_moments = MCmeanvarTMD(mu = SUN_correction_parameters_list$xi_t[,1],
-  #                           Sigma = SUN_correction_parameters_list$Omega_t,
-  #                           lambda = SUN_correction_parameters_list$Delta_t,
-  #                           tau = SUN_correction_parameters_list$gamma_t[,1],
-  #                           Gamma = cov2cor(Gamma_t) ,
-  #                           dist = "SUN", n = MC_samples)
-  #print(Sys.time()-start)
-  
-  #while(any(is.nan(SUN_moments$mean))){
-  #  print("nan encounter")
-  #  SUN_moments = MCmeanvarTMD(mu = SUN_correction_parameters_list$xi_t[,1],
-  #                             Sigma = SUN_correction_parameters_list$Omega_t,
-  #                             lambda = SUN_correction_parameters_list$Delta_t,
-  #                             tau = SUN_correction_parameters_list$gamma_t[,1],
-  #                             Gamma = cov2cor(Gamma_t) ,
-  #                             dist = "SUN", n = MC_samples)
-  #}
-  
-  #a_t = SUN_moments$mean #t(t(apply(SUN_sample, 1, mean)))
-  #P_t = SUN_moments$varcov #cov(t(SUN_sample))
+
   a_t = t(t(apply(SUN_sample, 1, mean)))
   P_t = cov(t(SUN_sample))
   
@@ -253,7 +262,7 @@ ADF_sampling_filter <- function(data, parameters, MC_samples = 1000)
   a_history[1,]  = parameters$a_0
   P_history[1,,] = parameters$P_0
   log_likelihood = 0
-  prediction_prob_history = list() #array(NA, dim = c(Time, L))
+  prediction_prob_history = list() 
   
   for(t in 1:Time)
   {
