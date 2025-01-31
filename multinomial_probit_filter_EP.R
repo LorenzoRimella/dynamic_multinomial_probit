@@ -87,8 +87,25 @@ EP_sampling_correction <- function(x_t, y_t, a_t_tm1, P_t_tm1, parameters, EP_it
   for(iteration in 1:EP_iterations)
   {
     for(i in 2:(m_t+1))
-    {
+    { 
+      # print(i)
       EP_parameters = site_i_update(i, x_t, y_t, r, Q, logZ, parameters, MC_samples)
+      
+      # next_index = (i+1)*(i<(m_t+1)) + (2)*(i==(m_t+1))
+      # eigen_next_Q_minus_i = eigen(apply(Q[-next_index,,], MARGIN = c(2,3), sum))$values
+      # eigen_next_Q_minus_i = eigen_next_Q_minus_i[length(eigen_next_Q_minus_i)]
+      # 
+      # while(eigen_next_Q_minus_i<0)
+      # {
+      #   EP_parameters = site_i_update(i, x_t, y_t, r, Q, logZ, parameters, MC_samples)
+      #   
+      #   next_index = (i+1)*(i<(m_t+1)) + (2)*(i==(m_t+1))
+      #   eigen_next_Q_minus_i = eigen(apply(Q[-next_index,,], MARGIN = c(2,3), sum))$values
+      #   eigen_next_Q_minus_i = eigen_next_Q_minus_i[length(eigen_next_Q_minus_i)]
+      # }
+      # 
+      # print(eigen_next_Q_minus_i)
+      
       Q = EP_parameters$Q
       r = EP_parameters$r
       
@@ -132,6 +149,7 @@ EP_sampling_filter <- function(data, parameters, EP_iterations = 5, MC_samples =
   
   for(t in 1:Time)
   {
+    # print(t)
     EP_prediction_parameters = ADF_prediction(a_history[t,], P_history[t,,], parameters)
     a_t_tm1 = EP_prediction_parameters$a_t_tm1
     P_t_tm1 = EP_prediction_parameters$P_t_tm1

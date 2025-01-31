@@ -152,7 +152,6 @@ multinomial_probit_EM <- function(data, filter, initial_parameters, EM_iteration
 
       parameters_current$Sigma = (new_Sigma + t(new_Sigma))/2
     }
-
     
   }
   
