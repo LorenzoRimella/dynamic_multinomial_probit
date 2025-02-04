@@ -3,6 +3,10 @@ rm(list=ls())
 library(rstudioapi)
 setwd(dirname(rstudioapi::getSourceEditorContext()$path))
 
+# If we change L it does not run
+# Check rango X matrix e se min autovalore di X^t X non è troppo piccolo
+# Standardizzare le variabili
+
 library(ggplot2)
 library(reshape2)
 library(tidyr)
@@ -33,6 +37,10 @@ Y = list()
 
 set.seed(5)
 
+data_X$log_price_usd= 0.5*scale(data_X$log_price_usd)
+data_X$prop_starrating= 0.5*scale(data_X$prop_starrating)
+data_X$prop_location_score1= 0.5*scale(data_X$prop_location_score1)
+
 current_t = t_0
 for(i in 1:end)
 {
@@ -43,7 +51,7 @@ for(i in 1:end)
   
   n_searches = floor(0.05*length(searches))
   
-  if(n_searches<2){n_searches = 2}
+  # if(n_searches<2){n_searches = 2}
   
   searches = sample(searches, n_searches, replace = FALSE, prob = NULL)
   
@@ -88,10 +96,10 @@ p = 5 #10 # number of subject dependent covariate
 beta_size = p + L
 
 a_0 = matrix(rep(0, beta_size), ncol = 1)
-P_0 = diag(beta_size)
+P_0 = 0.1*diag(beta_size)
 
 G = diag(beta_size)
-W = diag(beta_size)
+W = 0.1*diag(beta_size)
 Sigma = diag(L)
 
 data_multinomial_probit = list(X = X, Y = Y)
@@ -110,20 +118,20 @@ df_y$Category <- factor(df_y$Category, levels = as.character(sort(as.numeric(lev
 
 ggplot(df_y, aes(x = Time, y = Count, fill = Category)) +
   geom_bar(stat = "identity", position = "stack") +  # Stacked bar plot
-  scale_x_discrete(breaks = c(1, seq(0, Time, by = 10))) +
+  scale_x_discrete(breaks = c(1, seq(0, Time, by = L))) +
   labs(x = "Time", y = "Count", fill = "Category") +
   theme_minimal() 
 
 # EM algorithm
 EM_iterations = 100 
-learn_G = TRUE
+learn_G = F
 learn_W = F
 learn_Sigma = TRUE
 
 initial_parameters = list(a_0 = matrix(rep(0, beta_size), ncol = 1),
-                            P_0 = diag(beta_size),
+                            P_0 = 0.1*diag(beta_size),
                             G = diag(beta_size),
-                            W = diag(beta_size),
+                            W = 0.1*diag(beta_size),
                             Sigma = diag(L))
 
 EM_output = multinomial_probit_EM(data_multinomial_probit, EP_sampling_filter, initial_parameters, 
