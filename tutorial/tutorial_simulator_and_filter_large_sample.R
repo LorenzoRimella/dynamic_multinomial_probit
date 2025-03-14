@@ -4,8 +4,8 @@ library(tidyr)
 library(dplyr)
 library(gridExtra)
 
-source("R_directory/model.R")
-source("R_directory/multinomial_probit_sampling_filter.R")
+source("R_directory/dynamic_multinomial_probit/scripts/model.R")
+source("R_directory/dynamic_multinomial_probit/scripts/multinomial_probit_sampling_filter.R")
 
 # COMMENTS:
 # - prova le frequenze al tempo precedente e tutti i tempi

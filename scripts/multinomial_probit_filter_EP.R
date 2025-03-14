@@ -17,16 +17,22 @@ SUN_site_i_parameters <- function(i, x_t, y_t, r_minus_i, Q_minus_i, parameters)
   xi = a_minus_i
   Omega = P_minus_i
   
-  omega = diag(sqrt(diag(Omega)))
+  omega     = diag(  sqrt(diag(Omega)))
   inv_omega = diag(1/sqrt(diag(Omega)))
   barOmega  = inv_omega %*% Omega %*% inv_omega
   
   barX   = X_minus_l(x_t[i-1,,], y_t[i-1], L)
   Lambda = V_minus_l(y_t[i-1], L) %*% parameters$Sigma %*% t(V_minus_l(y_t[i-1], L))
-  
   XOX_Lambda = barX %*% Omega %*% t(barX) + Lambda
-  s = diag(sqrt(diag(XOX_Lambda)))
-  inv_s = diag(1/sqrt(diag(XOX_Lambda)))
+  
+  if(L==1){
+    s     = t(t(diag(t(t(  sqrt(diag(XOX_Lambda)))))))
+    inv_s = t(t(diag(t(t(1/sqrt(diag(XOX_Lambda))))))) # double transpose cause there was a dim bug
+  }else{
+    s     = diag(  sqrt(diag(XOX_Lambda)))
+    inv_s = diag(1/sqrt(diag(XOX_Lambda)))
+  }
+  
   Delta = barOmega %*% omega %*% t(barX) %*% inv_s
   
   gamma = inv_s %*% barX %*% a_minus_i
@@ -51,20 +57,25 @@ site_i_update <- function(i, x_t, y_t, r, Q, logZ, parameters, MC_samples)
   r_minus_i = t(t(apply(r[-i,], 2, sum)))
   Q_minus_i = apply(Q[-i,,], MARGIN = c(2,3), sum)
   
-  SUN_parameters_list_i = SUN_site_i_parameters(i, x_t, y_t, r_minus_i, Q_minus_i, parameters)
+  Q_minus_i = (Q_minus_i+t(Q_minus_i))/2
   
-  SUN_sample = rSUN(SUN_parameters_list_i, MC_samples) 
-  mu_i = t(t(apply(SUN_sample, 1, mean)))
-  Sigma_i = cov(t(SUN_sample))
-  
-  Q[i,,] = solve(Sigma_i) - Q_minus_i
-  r[i,]  = (Q_minus_i + Q[i,,]) %*% mu_i - r_minus_i
-  
-  r_EP = t(t(apply(r, 2, sum)))
-  Q_EP = apply(Q, MARGIN = c(2,3), sum)
-  
-  logZ_i = log_Psi(r_EP, Q_EP) - log_Psi(r_minus_i, Q_minus_i) - log(Phi(SUN_parameters_list_i$gamma_t, SUN_parameters_list_i$Gamma_t))
-  logZ[i-1]  = logZ_i
+  if(all(eigen(Q_minus_i, symmetric = TRUE, only.values = TRUE)$values>=0)){
+    
+    SUN_parameters_list_i = SUN_site_i_parameters(i, x_t, y_t, r_minus_i, Q_minus_i, parameters)
+    
+    SUN_sample = rSUN(SUN_parameters_list_i, MC_samples) 
+    mu_i = t(t(apply(SUN_sample, 1, mean)))
+    Sigma_i = cov(t(SUN_sample))
+    
+    Q[i,,] = solve(Sigma_i) - Q_minus_i
+    r[i,]  = (Q_minus_i + Q[i,,]) %*% mu_i - r_minus_i
+    
+    r_EP = t(t(apply(r, 2, sum)))
+    Q_EP = apply(Q, MARGIN = c(2,3), sum)
+    
+    logZ_i = log_Psi(r_EP, Q_EP) - log_Psi(r_minus_i, Q_minus_i) - log(Phi(SUN_parameters_list_i$gamma_t, SUN_parameters_list_i$Gamma_t))
+    logZ[i-1]  = logZ_i
+  }
   
   return(list(r = r, Q = Q, logZ = logZ))
 }
@@ -90,21 +101,6 @@ EP_sampling_correction <- function(x_t, y_t, a_t_tm1, P_t_tm1, parameters, EP_it
     { 
       # print(i)
       EP_parameters = site_i_update(i, x_t, y_t, r, Q, logZ, parameters, MC_samples)
-      
-      # next_index = (i+1)*(i<(m_t+1)) + (2)*(i==(m_t+1))
-      # eigen_next_Q_minus_i = eigen(apply(Q[-next_index,,], MARGIN = c(2,3), sum))$values
-      # eigen_next_Q_minus_i = eigen_next_Q_minus_i[length(eigen_next_Q_minus_i)]
-      # 
-      # while(eigen_next_Q_minus_i<0)
-      # {
-      #   EP_parameters = site_i_update(i, x_t, y_t, r, Q, logZ, parameters, MC_samples)
-      #   
-      #   next_index = (i+1)*(i<(m_t+1)) + (2)*(i==(m_t+1))
-      #   eigen_next_Q_minus_i = eigen(apply(Q[-next_index,,], MARGIN = c(2,3), sum))$values
-      #   eigen_next_Q_minus_i = eigen_next_Q_minus_i[length(eigen_next_Q_minus_i)]
-      # }
-      # 
-      # print(eigen_next_Q_minus_i)
       
       Q = EP_parameters$Q
       r = EP_parameters$r
@@ -132,6 +128,7 @@ EP_sampling_correction <- function(x_t, y_t, a_t_tm1, P_t_tm1, parameters, EP_it
 
 EP_sampling_filter <- function(data, parameters, EP_iterations = 5, MC_samples = 1000)
 {
+  start_time <- Sys.time()
   L = dim(parameters$Sigma)[1]
   Time = length(data$Y)
   
@@ -139,6 +136,8 @@ EP_sampling_filter <- function(data, parameters, EP_iterations = 5, MC_samples =
   
   a_history = array(NA, dim = c(Time+1, dim(parameters$a_0)[1]))
   P_history = array(NA, dim = c(Time+1, dim(parameters$a_0)[1], dim(parameters$a_0)[1]))
+  
+  sampling_history = array(NA, dim = c(Time, dim(parameters$a_0)[1], MC_samples))
   
   a_history[1,]  = parameters$a_0
   P_history[1,,] = parameters$P_0
@@ -159,7 +158,9 @@ EP_sampling_filter <- function(data, parameters, EP_iterations = 5, MC_samples =
     EP_correction_output = EP_sampling_correction(x_t, y_t, a_t_tm1, P_t_tm1, parameters, EP_iterations, MC_samples)
     
     a_history[t+1,]  = EP_correction_output$a_t
-    P_history[t+1,,] = EP_correction_output$P_t #(EP_correction_output$P_t + t(EP_correction_output$P_t))/2
+    P_history[t+1,,] = EP_correction_output$P_t 
+    
+    sampling_history[t,,] = mvtnorm::rmvnorm(n = MC_samples, mean = EP_correction_output$a_t, sigma = EP_correction_output$P_t)
     
     log_likelihood = log_likelihood + EP_correction_output$log_likelihood_increment
     
@@ -170,5 +171,7 @@ EP_sampling_filter <- function(data, parameters, EP_iterations = 5, MC_samples =
   
   return(list(log_likelihood = log_likelihood, 
               a_history = a_history, P_history = P_history, 
-              r_history = r_history, Q_history = Q_history))
+              r_history = r_history, Q_history = Q_history,
+              sampling_history = sampling_history,
+              running_time = as.numeric(Sys.time() - start_time, units = "secs")))
 }

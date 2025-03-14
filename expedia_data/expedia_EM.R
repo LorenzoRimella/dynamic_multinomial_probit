@@ -28,7 +28,7 @@ gaussian_prior <- function(data, parameters)
 }
 
 multinomial_probit_EM <- function(data, filter, initial_parameters, EM_iterations = 100, 
-                                  learn_G = TRUE, learn_W = TRUE, learn_Sigma = TRUE)
+                                  learn_G = TRUE, learn_W = TRUE, learn_Sigma = TRUE, type = "ADF")
 {
   Time = length(data$Y)
   sum_m_t = sum(sapply(data$Y, length)) #Reduce("+", lapply(seq(1, Time), function(t) length(data$Y[[t]])))
@@ -109,7 +109,7 @@ multinomial_probit_EM <- function(data, filter, initial_parameters, EM_iteration
     
     if(learn_Sigma)
     {
-      eps_history = epsilon_smoother(data, parameters_current, filter_output, smoother_output)
+      eps_history = epsilon_smoother(data, parameters_current, filter_output, smoother_output, type)
 
       eps_SUN_sample = lapply(seq(1, Time), function(t) lapply(seq(1, length(data$Y[[t]])), function(i) rSUN(eps_history[[t]][[i]], 1000)))
       

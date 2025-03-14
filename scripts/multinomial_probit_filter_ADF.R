@@ -16,39 +16,6 @@ one_hot <- function(position, dimension)
   return(vector)
 }
 
-Phi_old <- function(mu, Sigma)
-{
-  std_mean  = rep(0, dim(mu)[1])
-  lower_lim = rep(-Inf, dim(mu)[1])
-  
-  if(isSymmetric(Sigma))
-  {
-    return(mvtnorm::pmvnorm(lower = lower_lim, upper = mu[,1], mean = std_mean, sigma = Sigma, keepAttr = F))
-  }
-  
-  else 
-  { 
-    Sigma_copy = Sigma
-    Sigma_copy[lower.tri(Sigma)] = 0
-    Sigma_copy = t(Sigma_copy)
-    
-    Sigma_copy_copy  = Sigma
-    Sigma_copy_copy[lower.tri(Sigma, diag = TRUE)] = 0
-    
-    Sigma = Sigma_copy + Sigma_copy_copy
-    if(isSymmetric(Sigma))
-    {
-      return(mvtnorm::pmvnorm(lower = lower_lim, upper = mu[,1], mean = std_mean, sigma = round(Sigma, 2), keepAttr = F))
-    } 
-    
-    else
-    {
-      print("Error in Sigma")
-    }
-  }
-  
-}
-
 Phi<- function(mu, Sigma)
 {
   return(tlrmvnmvt::pmvn(upper = mu[,1], sigma = Sigma)[1])
@@ -56,27 +23,53 @@ Phi<- function(mu, Sigma)
 
 V_minus_l <- function(l, L)
 {
-  if(l!=0)
-  {
-    return(t(cbind(- one_hot(l,L), sapply(seq(1, L)[-l], function(i) one_hot(i,L) - one_hot(l,L)))))
+  if(L>1){
+    if(l!=0)
+    {
+      return(t(cbind(- one_hot(l,L), sapply(seq(1, L)[-l], function(i) one_hot(i,L) - one_hot(l,L)))))
+    }
+    
+    else
+    {
+      return(diag(L))
+    }
   }
-  
-  else
-  {
-    return(diag(L))
+  else{
+    if(l!=0)
+    {
+      return(-diag(L))
+    }
+    
+    else
+    {
+      return(diag(L))
+    }
   }
 }
 
 X_minus_l <- function(x, l, L)
 {
-  if(l!=0)
-  {
-    return(t(cbind(x[,l], sapply(seq(1, L)[-l], function(i) x[,l] - x[,i]))))
+  if(L>1){
+    if(l!=0)
+    {
+      return(t(cbind(x[,l], sapply(seq(1, L)[-l], function(i) x[,l] - x[,i]))))
+    }
+    
+    else
+    {
+      return(t(sapply(seq(1, L), function(i) -x[,i])))
+    }
   }
-  
-  else
-  {
-    return(t(sapply(seq(1, L), function(i) -x[,i])))
+  else{
+    if(l!=0)
+    {
+      return((t(x)))
+    }
+    
+    else
+    {
+      return((t(-x)))
+    }
   }
   
 }
@@ -96,7 +89,7 @@ SUN_correction_parameters <- function(x_t, y_t, a_t_tm1, P_t_tm1, parameters)
   xi_t = a_t_tm1
   Omega_t = P_t_tm1
   
-  omega_t = diag(sqrt(diag(Omega_t)))
+  omega_t     = diag(  sqrt(diag(Omega_t)))
   inv_omega_t = diag(1/sqrt(diag(Omega_t)))
   barOmega_t  = inv_omega_t %*% Omega_t %*% inv_omega_t
   
@@ -104,8 +97,10 @@ SUN_correction_parameters <- function(x_t, y_t, a_t_tm1, P_t_tm1, parameters)
   Lambda_t = do.call(adiag, lapply(seq(1, m_t), function(i) V_minus_l(y_t[i], L) %*% parameters$Sigma %*% t(V_minus_l(y_t[i], L))))
   
   XOX_Lambda = barX_t %*% Omega_t %*% t(barX_t) + Lambda_t
-  s_t = diag(sqrt(diag(XOX_Lambda)))
+  
+  s_t     = diag(  sqrt(diag(XOX_Lambda)))
   inv_s_t = diag(1/sqrt(diag(XOX_Lambda)))
+  
   Delta_t = barOmega_t %*% omega_t %*% t(barX_t) %*% inv_s_t
   
   gamma_t = inv_s_t %*% barX_t %*% a_t_tm1
@@ -125,7 +120,7 @@ SUN_correction_prediction_parameters <- function(x_t, a_t_tm1, P_t_tm1, paramete
   xi_t = a_t_tm1
   Omega_t = P_t_tm1
   
-  omega_t = diag(sqrt(diag(Omega_t)))
+  omega_t     = diag(  sqrt(diag(Omega_t)))
   inv_omega_t = diag(1/sqrt(diag(Omega_t)))
   barOmega_t  = inv_omega_t %*% Omega_t %*% inv_omega_t
   
@@ -134,46 +129,26 @@ SUN_correction_prediction_parameters <- function(x_t, a_t_tm1, P_t_tm1, paramete
   
   
   XOX_Lambda = lapply(seq(1, m_t), function(i) lapply(seq(1, L), function(j) barX_t[[i]][[j]] %*% Omega_t %*% t(barX_t[[i]][[j]]) + Lambda_t[[i]][[j]]))
-  s_t     = lapply(seq(1, m_t), function(i) lapply(seq(1, L), function(j) diag(sqrt(diag(XOX_Lambda[[i]][[j]])))))
-  inv_s_t = lapply(seq(1, m_t), function(i) lapply(seq(1, L), function(j) diag(1/sqrt(diag(XOX_Lambda[[i]][[j]])))))
-  Delta_t = lapply(seq(1, m_t), function(i) lapply(seq(1, L), function(j) barOmega_t %*% omega_t %*% t(barX_t[[i]][[j]]) %*% inv_s_t[[i]][[j]]))
   
+  if(L==1){
+    
+    s_t     = lapply(seq(1, m_t), function(i) lapply(seq(1, L), function(j) t(t(diag(t(t(  sqrt(diag(XOX_Lambda[[i]][[j]])))))))))
+    inv_s_t = lapply(seq(1, m_t), function(i) lapply(seq(1, L), function(j) t(t(diag(t(t(1/sqrt(diag(XOX_Lambda[[i]][[j]])))))))))
+    
+  }else{
+    
+    s_t     = lapply(seq(1, m_t), function(i) lapply(seq(1, L), function(j) diag(  sqrt(diag(XOX_Lambda[[i]][[j]])))))
+    inv_s_t = lapply(seq(1, m_t), function(i) lapply(seq(1, L), function(j) diag(1/sqrt(diag(XOX_Lambda[[i]][[j]])))))
+    
+  }
+  
+  Delta_t = lapply(seq(1, m_t), function(i) lapply(seq(1, L), function(j) barOmega_t %*% omega_t %*% t(barX_t[[i]][[j]]) %*% inv_s_t[[i]][[j]]))
+
   gamma_t = lapply(seq(1, m_t), function(i) lapply(seq(1, L), function(j) inv_s_t[[i]][[j]] %*% barX_t[[i]][[j]] %*% a_t_tm1))
   Gamma_t = lapply(seq(1, m_t), function(i) lapply(seq(1, L), function(j) inv_s_t[[i]][[j]] %*% XOX_Lambda[[i]][[j]] %*% inv_s_t[[i]][[j]]))
   
   return(list(gamma_t = gamma_t, Gamma_t = Gamma_t))
 }
-
-# is_positive_semidefinite <- function(mat) {
-#   # Check if the matrix is symmetric
-#   if (!isSymmetric(mat)) {
-#     return(FALSE)
-#   }
-# 
-#   # Calculate eigenvalues
-#   eigenvalues <- eigen(mat, only.values = TRUE)$values
-# 
-#   # Check if all eigenvalues are non-negative
-#   all(eigenvalues > 0) 
-# }
-# 
-# make_positive_semidefinite <- function(mat) {
-# 
-#   # print("Modify to positive semidefinite")
-#   # Ensure the matrix is symmetric
-#   mat <- (mat + t(mat)) / 2
-# 
-#   # Perform eigen decomposition
-#   eig <- eigen(mat)
-# 
-#   # Replace negative eigenvalues with zero
-#   eig$values[eig$values <= 0] <- 1e-8
-# 
-#   # Reconstruct the matrix
-#   mat_psd <- eig$vectors %*% diag(eig$values) %*% t(eig$vectors)
-# 
-#   return(mat_psd)
-# }
 
 rSUN <- function(SUN_correction_parameters_list, n=1) 
 {
@@ -182,33 +157,26 @@ rSUN <- function(SUN_correction_parameters_list, n=1)
   
   if(d==1) {
     omega=sqrt(SUN_correction_parameters_list$Omega_t)
-  } else {
+  } 
+  else {
     omega=diag(sqrt(diag(SUN_correction_parameters_list$Omega_t)))
   }
   
   omDe = SUN_correction_parameters_list$omega_t%*%SUN_correction_parameters_list$Delta_t
   
   Gamma_t = SUN_correction_parameters_list$Gamma_t 
-  # if(!is_positive_semidefinite(Gamma_t))
-  # {
-  #   Gamma_t = make_positive_semidefinite(Gamma_t)
-  # }
-  
+
   invGamma = solve(Gamma_t)
   
   PsiDel = SUN_correction_parameters_list$Omega_t-omDe%*%invGamma%*%t(omDe)
-  # if(!is_positive_semidefinite(PsiDel))
-  # {
-  #   PsiDel = make_positive_semidefinite(PsiDel)
-  # }
   
   sampleMultNorm=t(mvtnorm::rmvnorm(n = n, mean = rep(0,d), sigma = (PsiDel+t(PsiDel))/2))
   
-  if(m==1){ # when m == 1 rtmvnorm returns the samples as a row vector (i.e. one sample per column)
+  if(m==1){ 
     sampleTruncNorm = TruncatedNormal::rtmvnorm(n = n, 
                                                 mu = rep(0,m), sigma = (Gamma_t+t(Gamma_t))/2, 
                                                 lb = -SUN_correction_parameters_list$gamma_t, ub = rep(Inf,m))
-  } else{ # when m > 1 rtmvnorm returns the samples in an n x m matrix (i.e. one sample per row) 
+  } else{ 
     sampleTruncNorm = t(TruncatedNormal::rtmvnorm(n = n, 
                                                   mu = rep(0,m), sigma = (Gamma_t+t(Gamma_t))/2, 
                                                   lb = -SUN_correction_parameters_list$gamma_t, ub = rep(Inf,m)))
@@ -245,12 +213,14 @@ ADF_sampling_correction <- function(x_t, y_t, a_t_tm1, P_t_tm1, parameters, MC_s
   return(list(log_likelihood_increment = log_likelihood_increment,
               prediction_prob = prediction_prob,
               a_t = a_t,
-              P_t = P_t))
+              P_t = P_t,
+              sample = SUN_sample))
 }
 
 
 ADF_sampling_filter <- function(data, parameters, MC_samples = 1000)
 {
+  start_time <- Sys.time()
   L = dim(parameters$Sigma)[1]
   Time = length(data$Y)
   
@@ -258,6 +228,8 @@ ADF_sampling_filter <- function(data, parameters, MC_samples = 1000)
   
   a_history = array(NA, dim = c(Time+1, dim(parameters$a_0)[1]))
   P_history = array(NA, dim = c(Time+1, dim(parameters$a_0)[1], dim(parameters$a_0)[1]))
+  
+  sampling_history = array(NA, dim = c(Time, dim(parameters$a_0)[1], MC_samples))
   
   a_history[1,]  = parameters$a_0
   P_history[1,,] = parameters$P_0
@@ -278,12 +250,23 @@ ADF_sampling_filter <- function(data, parameters, MC_samples = 1000)
     a_history[t+1,]  = ADF_correction_output$a_t
     P_history[t+1,,] = ADF_correction_output$P_t
     
+    sampling_history[t,,] = ADF_correction_output$sample
+    
     log_likelihood = log_likelihood + ADF_correction_output$log_likelihood_increment
     
-    prediction_prob_history[[t]] = rbind((1-apply(ADF_correction_output$prediction_prob, 2, sum)), 
-                                          ADF_correction_output$prediction_prob)
+    if(L==1){
+      prediction_prob_history[[t]] = rbind(1-ADF_correction_output$prediction_prob, 
+                                             ADF_correction_output$prediction_prob)
+    }else{
+      prediction_prob_history[[t]] = rbind((1-apply(ADF_correction_output$prediction_prob, 2, sum)), 
+                                           ADF_correction_output$prediction_prob)
+    }
+    
       
   }
   
-  return(list(log_likelihood = log_likelihood, a_history = a_history, P_history = P_history, prediction_prob_history = prediction_prob_history))
+  return(list(log_likelihood = log_likelihood, 
+              a_history = a_history, P_history = P_history, prediction_prob_history = prediction_prob_history,
+              sampling_history = sampling_history,
+              running_time = as.numeric(Sys.time() - start_time, units = "secs")))
 }

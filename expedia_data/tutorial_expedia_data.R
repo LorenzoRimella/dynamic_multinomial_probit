@@ -12,9 +12,11 @@ data_Y = read.csv("R_directory/dynamic_multinomial_probit/expedia_data/data_Y.cs
 #                        "prop_starrating_0", "prop_starrating_1", "prop_starrating_2",
 #                        "prop_starrating_3", "prop_starrating_4", "prop_starrating_5")
 
-covariates_names = c(  "prop_brand_bool",   "prop_location_score1",
-                       "promotion_flag", "log_price_usd",
-                       "prop_starrating")
+covariates_names = c( ) #"prop_brand_bool",   
+                       #"prop_location_score1",
+                       #"promotion_flag", 
+                       #"log_price_usd",
+                       #"prop_starrating")
 
 L = 10
 
@@ -28,6 +30,10 @@ Y = list()
 
 set.seed(5)
 
+data_X$log_price_usd= 0.5*scale(data_X$log_price_usd)
+data_X$prop_starrating= 0.5*scale(data_X$prop_starrating)
+data_X$prop_location_score1= 0.5*scale(data_X$prop_location_score1)
+
 current_t = t_0
 for(i in 1:end)
 {
@@ -36,7 +42,7 @@ for(i in 1:end)
   current_Y = subset(data_Y, t == current_t)
   searches  = unique(current_X$srch_id)
   
-  n_searches = floor(0.05*length(searches))
+  n_searches = floor(0.2*length(searches))
   
   if(n_searches<2){n_searches = 2}
   
@@ -69,16 +75,16 @@ for(i in 1:end)
 
 set.seed(5)
 
-source("R_directory/dynamic_multinomial_probit/model.R")
-source("R_directory/dynamic_multinomial_probit/multinomial_probit_sampling_filter.R")
-source("R_directory/dynamic_multinomial_probit/multinomial_probit_filter_exact.R")
-source("R_directory/dynamic_multinomial_probit/multinomial_probit_filter_EP.R")
-source("R_directory/dynamic_multinomial_probit/multinomial_probit_gaussian_smoothing.R")
+source("R_directory/dynamic_multinomial_probit/scripts/model.R")
+source("R_directory/dynamic_multinomial_probit/scripts/multinomial_probit_filter_ADF.R")
+source("R_directory/dynamic_multinomial_probit/scripts/multinomial_probit_filter_exact.R")
+source("R_directory/dynamic_multinomial_probit/scripts/multinomial_probit_filter_EP.R")
+source("R_directory/dynamic_multinomial_probit/scripts/multinomial_probit_gaussian_smoothing.R")
 source("R_directory/dynamic_multinomial_probit/expedia_data/expedia_EM.R")
 
 Time= length(Y)
 
-p = 5 #10 # number of subject dependent covariate
+p = 0 #3 #5 #10 # number of subject dependent covariate
 
 beta_size = p + L
 
@@ -115,18 +121,63 @@ learn_G = TRUE
 learn_W = TRUE
 learn_Sigma = TRUE
 
-initial_parameters = list(a_0 = matrix(rep(0, beta_size), ncol = 1),
-                            P_0 = diag(beta_size),
-                            G = diag(beta_size),
-                            W = diag(beta_size),
-                            Sigma = diag(L))
+initial_parameters = list(a_0 = a_0,
+                            P_0 = P_0,
+                            G = G,
+                            W = W,
+                            Sigma = Sigma)
 
 EM_output = multinomial_probit_EM(data_multinomial_probit, EP_sampling_filter, initial_parameters, 
                                   EM_iterations,
                                   learn_G, learn_W, learn_Sigma)
 
+EP_filter_sampler_output = EP_sampling_filter(data_multinomial_probit, initial_parameters)
+
+parameters = list(a_0 = a_0,
+                        P_0 = P_0,
+                        G = G_history_subset[27,,],
+                        W = W_history_subset[27,,],
+                        Sigma = Sigma_history_subset[27,,])
+
+EP_filter_sampler_output = EP_sampling_filter(data_multinomial_probit, parameters)
 
 
+color_list <- c("blue", "black", "red", "green", "brown")
+
+# Create a data frame for plotting
+data_list <- list()
+for (j in 1:2) {
+  for (i in 1:5) {
+    df_filter <- data.frame(
+      x = seq(0, Time, length.out = Time+1),
+      y1 = EP_filter_sampler_output$a_history[, 3*(j-1) + i],
+      y2 = EP_filter_sampler_output$a_history[, 3*(j-1) + i],
+      y_upper = EP_filter_sampler_output$a_history[, 3*(j-1) + i] + 1.96 * sqrt(EP_filter_sampler_output$P_history[, 3*(j-1) + i, 3*(j-1) + i]),
+      y_lower = EP_filter_sampler_output$a_history[, 3*(j-1) + i] - 1.96 * sqrt(EP_filter_sampler_output$P_history[, 3*(j-1) + i, 3*(j-1) + i]),
+      color = color_list[i],
+      facet_row = j,
+      facet_col = i
+    )
+    data_list[[length(data_list) + 1]] <- df_filter
+  }
+}
+
+plot_data <- bind_rows(data_list)
+
+# Create the ggplot
+ggplot(plot_data, aes(x = x)) +
+  geom_line(aes(y = y1, color = color), alpha = 0.5) +
+  geom_line(aes(y = y2, color = color), alpha = 1.0) +
+  geom_ribbon(aes(ymin = y_lower, ymax = y_upper, fill = color), alpha = 0.5) +
+  facet_grid(facet_row ~ facet_col) +
+  scale_color_identity() +
+  scale_fill_identity() +
+  theme_minimal() +
+  theme( panel.spacing = unit(1, "lines"))+
+  labs(x = "Time", y = "Beta")    
+
+
+print("stop")
 
 
 

@@ -1,5 +1,3 @@
-# library(einsum)
-
 gaussian_prior <- function(data, parameters)
 {
   L = dim(parameters$Sigma)[1]
@@ -28,7 +26,7 @@ gaussian_prior <- function(data, parameters)
 }
 
 multinomial_probit_EM <- function(data, filter, initial_parameters, EM_iterations = 100, 
-                                  learn_G = TRUE, learn_W = TRUE, learn_Sigma = TRUE)
+                                  learn_G = TRUE, learn_W = TRUE, learn_Sigma = TRUE, type = "ADF")
 {
   Time = length(data$Y)
   sum_m_t = sum(sapply(data$Y, length)) #Reduce("+", lapply(seq(1, Time), function(t) length(data$Y[[t]])))
@@ -71,23 +69,6 @@ multinomial_probit_EM <- function(data, filter, initial_parameters, EM_iteration
     }
     Sigma_history[iteration,,] = parameters_current$Sigma
     
-    # if(iteration>2)
-    # {
-    #   if(log_likelihood_history[iteration]< 0.9*log_likelihood_history[iteration-1])
-    #   {
-    #     print(paste("Likelihood diff of ", log_likelihood_history[iteration]- log_likelihood_history[iteration-1]))
-    #     
-    #     filter_output = filter(data, parameters_current)
-    #     smoother_output = Gaussian_smoother(data, parameters_current, filter_output)
-    #     log_likelihood_history[iteration] = filter_output$log_likelihood
-    #     print(filter_output$log_likelihood)
-    #     
-    #     parameters_current$G = G_history[iteration-1,,]
-    #     parameters_current$W = W_history[iteration-1,,]
-    #     parameters_current$Sigma = Sigma_history[iteration-1,,]
-    #   }    
-    # }
-    
     if(learn_G)
     {
       a_0_Tm1_T = smoother_output$a_history[1:Time,]
@@ -126,28 +107,14 @@ multinomial_probit_EM <- function(data, filter, initial_parameters, EM_iteration
     
     if(learn_Sigma)
     {
-      eps_history = epsilon_smoother(data, parameters_current, filter_output, smoother_output)
+      eps_history = epsilon_smoother(data, parameters_current, filter_output, smoother_output, type)
 
-      # indexes_i = lapply(seq(1, Time), function(t) sapply(seq(1, length(data$Y[[t]])), function(i) !(any(sapply(seq(1, length(eps_history[[t]][[i]])), function(k) any(is.nan(eps_history[[t]][[i]][[k]])))))))
-      # indexes_t = sapply(seq(1, Time), function(t) !all(!indexes_i[[t]]))
-      # 
-      # eps_SUN_sample = lapply(seq(1, Time)[indexes_t], function(t) lapply(seq(1, length(data$Y[[t]]))[indexes_i[[t]]], function(i) rSUN(eps_history[[t]][[i]], 1000)))
-      # 
-      # eps_second_moment = lapply(seq(1, length(seq(1, Time)[indexes_t])), function(t) lapply(seq(1, length(seq(1, length(data$Y[[t]]))[indexes_i[[t]]])), function(i) cov(t(eps_SUN_sample[[t]][[i]])) + (t(t(apply(eps_SUN_sample[[t]][[i]], 1, mean))) %*% t(apply(eps_SUN_sample[[t]][[i]], 1, mean)))))
-      # 
-      # new_Sigma = Reduce("+", lapply(seq(1, Time), function(t) Reduce("+", eps_second_moment[[t]])))/sum(sapply(indexes_i, sum))
-      
       eps_SUN_sample = lapply(seq(1, Time), function(t) lapply(seq(1, length(data$Y[[t]])), function(i) rSUN(eps_history[[t]][[i]], 1000)))
       
       eps_second_moment = lapply(seq(1, Time),
                                  function(t) lapply(seq(1, length(data$Y[[t]])),
                                                     function(i) cov(t(eps_SUN_sample[[t]][[i]])) + (t(t(apply(eps_SUN_sample[[t]][[i]], 1, mean))) %*% t(apply(eps_SUN_sample[[t]][[i]], 1, mean)))))
-
-      # eps_second_moment = lapply(seq(1, Time),
-      #                            function(t) lapply(seq(1, length(data$Y[[t]])),
-      #                                               function(i) Reduce("+", lapply(seq(1, 1000), function(s) eps_SUN_sample[[t]][[i]][,s] %*% t(eps_SUN_sample[[t]][[i]][,s])))/1000))
-      # 
-       
+      
       new_Sigma = Reduce("+", lapply(seq(1, Time), function(t) Reduce("+", eps_second_moment[[t]])))/sum_m_t
 
       parameters_current$Sigma = (new_Sigma + t(new_Sigma))/2

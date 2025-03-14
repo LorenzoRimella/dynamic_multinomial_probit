@@ -3,6 +3,9 @@ rm(list=ls())
 library(rstudioapi)
 setwd(dirname(rstudioapi::getSourceEditorContext()$path))
 
+
+# fissa W e impara G e Sigma 
+
 library(ggplot2)
 library(reshape2)
 library(tidyr)
@@ -15,22 +18,22 @@ library(gridExtra)
 
 set.seed(5)
 
-source("R_directory/dynamic_multinomial_probit/model.R")
-source("R_directory/dynamic_multinomial_probit/multinomial_probit_sampling_filter.R")
-source("R_directory/dynamic_multinomial_probit/multinomial_probit_filter_exact.R")
-source("R_directory/dynamic_multinomial_probit/multinomial_probit_filter_EP.R")
-source("R_directory/dynamic_multinomial_probit/multinomial_probit_gaussian_smoothing.R")
-source("R_directory/dynamic_multinomial_probit/multinomial_probit_EM.R")
+source("R_directory/dynamic_multinomial_probit/scripts/model.R")
+source("R_directory/dynamic_multinomial_probit/scripts/multinomial_probit_filter_ADF.R")
+source("R_directory/dynamic_multinomial_probit/scripts/multinomial_probit_filter_exact.R")
+source("R_directory/dynamic_multinomial_probit/scripts/multinomial_probit_filter_EP.R")
+source("R_directory/dynamic_multinomial_probit/scripts/multinomial_probit_gaussian_smoothing.R")
+source("R_directory/dynamic_multinomial_probit/scripts/multinomial_probit_EM.R")
 
-L = 2 # number of choices
+L = 5 # number of choices
 Time= 20 # number of time steps
 
-p = 2 # number of subject dependent covariate
+p = 5 # number of subject dependent covariate
 
-N_max = 10 # maximum number of customers
-lambda_M = 1
+N_max = 20 # maximum number of customers
+lambda_M = 5
 
-hyperparameters = list(lambda_M = lambda_M, N_max = N_max)
+hyperparameters = list(lambda_M = lambda_M, N_max = N_max, prediction_bool= FALSE)
 
 X_cov = matrix(runif(N_max*p, -0.5, 0.5), nrow = N_max, ncol = p)
 
@@ -115,8 +118,8 @@ EP_sampling_filter_output_exact$log_likelihood
 
 # EM algorithm
 EM_iterations = 100 
-learn_G = FALSE
-learn_W = FALSE
+learn_G = TRUE
+learn_W = TRUE
 learn_Sigma = TRUE
 
 if((learn_G & learn_W) & !(learn_Sigma))
@@ -143,9 +146,12 @@ if(learn_Sigma & learn_G & learn_W)
                             Sigma = diag(L))
 }
 
-EM_output = multinomial_probit_EM(data_multinomial_probit, EP_sampling_filter, initial_parameters, 
+EM_output = multinomial_probit_EM(data_multinomial_probit, ADF_sampling_filter, initial_parameters, 
                                   EM_iterations,
-                                  learn_G, learn_W, learn_Sigma)
+                                  learn_G, learn_W, learn_Sigma, type = "ADF")
+
+EM_output
+save(EM_output, file = "R_directory/dynamic_multinomial_probit/EM_output_ADF.RData")
 
 # Create a data frame for the line plot
 df <- data.frame(
