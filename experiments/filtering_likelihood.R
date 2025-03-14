@@ -1,9 +1,14 @@
-source("R_directory/dynamic_multinomial_probit/scripts/model.R")
-source("R_directory/dynamic_multinomial_probit/scripts/multinomial_probit_filter_EP.R")
-source("R_directory/dynamic_multinomial_probit/scripts/multinomial_probit_filter_SMC.R")
-source("R_directory/dynamic_multinomial_probit/scripts/multinomial_probit_filter_ADF.R")
-source("R_directory/dynamic_multinomial_probit/scripts/multinomial_probit_filter_exact.R")
-source("R_directory/dynamic_multinomial_probit/scripts/multinomial_probit_gaussian_smoothing.R")
+rm(list=ls())
+# Set the directory to the path of the current script
+library(rstudioapi)
+setwd(dirname(rstudioapi::getSourceEditorContext()$path))
+
+source("../scripts/model.R")
+source("../scripts/multinomial_probit_filter_EP.R")
+source("../scripts/multinomial_probit_filter_SMC.R")
+source("../scripts/multinomial_probit_filter_ADF.R")
+source("../scripts/multinomial_probit_filter_exact.R")
+source("../scripts/multinomial_probit_gaussian_smoothing.R")
 
 library(ggplot2)
 library(tidyr)
@@ -21,9 +26,9 @@ library(tidyr)
 L = 3 # number of choices
 Time= 10 # number of time steps
 
-p = 5 # number of subject dependent covariate
+p = 10 # number of subject dependent covariate
 
-expected_m_t = 5
+expected_m_t = 10
 
 sim_name <- function(L, Time, p, expected_m_t)
 {
@@ -42,7 +47,7 @@ sim_name <- function(L, Time, p, expected_m_t)
 
 output_name = sim_name(L, Time, p, expected_m_t)
 name_simulation = output_name$name
-directory_name  = paste("R_directory/dynamic_multinomial_probit/data/", output_name$name_for_dir, sep ="")
+directory_name  = paste("../data/", output_name$name_for_dir, sep ="")
 
 # Create the directory if needed
 if (!dir.exists(directory_name)) {
@@ -222,11 +227,12 @@ for(repl in 1:n_replicates)
   data_list[[i+3]] = (df_SMC)
   data_list[[i+4]] = (df_exact)
   i = i+4 
+  
+  data_frame_output = bind_rows(data_list)
+  
+  save(data_frame_output, file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_data.Rdata"))
+  
 }
-
-data_frame_output = bind_rows(data_list)
-
-save(data_frame_output, file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_data.Rdata"))
 
 # Compute mean and standard deviation for each type
 summary_table <- data_frame_output %>%
