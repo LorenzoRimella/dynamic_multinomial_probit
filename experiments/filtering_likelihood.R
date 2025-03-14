@@ -13,8 +13,36 @@ library(transport)
 library(expm) # for sqrtm (matrix square root)
 library(future.apply)
 
-name_simulation = "small_dim_small_data_small_T"
-directory_name  = "R_directory/dynamic_multinomial_probit/data/small_dim_small_data_small_T/"
+library(dplyr)
+library(tidyr)
+
+
+# SET UP THE SIMULATION
+L = 3 # number of choices
+Time= 10 # number of time steps
+
+p = 5 # number of subject dependent covariate
+
+expected_m_t = 5
+
+sim_name <- function(L, Time, p, expected_m_t)
+{
+  string = paste("filt_smoot_lik_p_", p, sep = "")
+  string = paste(string, "_mt_", sep = "")
+  string = paste(string, expected_m_t, sep = "")
+  string = paste(string, "_L_", sep = "")
+  string = paste(string, L, sep = "")
+  string = paste(string, "_Time_", sep = "")
+  string = paste(string, Time, sep = "")
+  
+  dir_string = paste(string, "/", sep ="")
+  
+  return(list(name = string, name_for_dir = dir_string))
+}
+
+output_name = sim_name(L, Time, p, expected_m_t)
+name_simulation = output_name$name
+directory_name  = paste("R_directory/dynamic_multinomial_probit/data/", output_name$name_for_dir, sep ="")
 
 # Create the directory if needed
 if (!dir.exists(directory_name)) {
@@ -24,12 +52,6 @@ if (!dir.exists(directory_name)) {
 set.seed(123)
 
 # GENERATE PARAMETERS
-# check the loglikelihood for exact
-
-L = 3 # number of choices
-Time= 10 # number of time steps
-
-p = 5 # number of subject dependent covariate
 
 beta_size = p + L
 
@@ -58,21 +80,21 @@ ggplot(df, aes(x, y, fill = z)) +
   coord_fixed() +
   theme_minimal()
 
-W = 0.1*diag(beta_size)
+W = 0.05*diag(beta_size)
 
-Sigma = 0.5*diag(L)
+Sigma = 0.2*diag(L)
 for(i in 2:L)
 {
   sign = sample(c(-1, 1), 1)
-  Sigma[i,i-1] = sign*0.2
-  Sigma[i-1,i] = sign*0.2
+  Sigma[i,i-1] = sign*0.1
+  Sigma[i-1,i] = sign*0.1
 }
 
 # GENERATE DATA
 
 parameters = list(a_0 = a_0, P_0 = P_0, G = G, W = W, Sigma = Sigma)
 
-hyperparameters = list(lambda_M = 5, N_max = 20, prediction_bool= FALSE)
+hyperparameters = list(lambda_M = expected_m_t, N_max = 4*expected_m_t, prediction_bool= FALSE)
 
 X_cov = matrix(runif(hyperparameters$N_max*p, -0.5, 0.5), nrow = hyperparameters$N_max, ncol = p)
 
@@ -141,60 +163,94 @@ mean_wasserstein_sampling <- function(sampling_1, sampling_2)
                                                            function(i) wasserstein1d(sampling_1[t,i,], sampling_2[t,i,], p = 2))))))
 }
 
-n_replicates = 100
+# SAME DATA but different replicates
+
+n_replicates = 5
 data_list <- list()
+i = 0
 
+for(repl in 1:n_replicates)
+{
+  EP_filter_sampler_output   = EP_sampling_filter(data_multinomial_probit, parameters)
+  EP_smoother_sampler_output = Gaussian_smoother(data_multinomial_probit, parameters, EP_filter_sampler_output)
+  
+  ADF_filter_sampler_output   = ADF_sampling_filter(data_multinomial_probit, parameters, MC_samples)
+  ADF_smoother_sampler_output = Gaussian_smoother(data_multinomial_probit, parameters, ADF_filter_sampler_output)
+  
+  exact_filter_sampler_output   = exact_sampling_filter(data_multinomial_probit, parameters, sliding_window, MC_samples)
+  exact_smoother_sampler_output = Gaussian_smoother(data_multinomial_probit, parameters, exact_filter_sampler_output)
+  
+  SMC_filter_sampler_output   = SMC_sampling_filter(data_multinomial_probit, parameters, MC_samples)
+  SMC_smoother_sampler_output = Gaussian_smoother(data_multinomial_probit, parameters, SMC_filter_sampler_output)
+  
+  df_EP = data.frame(type ="EP", 
+                     filter_running_time   = EP_filter_sampler_output$running_time,
+                     smoother_running_time = EP_smoother_sampler_output$running_time,
+                     log_likelihood        = EP_filter_sampler_output$log_likelihood,
+                     filter_distance_from_exact = mean_wasserstein_sampling(EP_filter_sampler_output$sampling_history,
+                                                                            exact_filter_sampler_output$sampling_history),
+                     smoothing_distance_from_exact = mean_wasserstein_gaussian(EP_smoother_sampler_output, 
+                                                                               exact_smoother_sampler_output))
+  
+  df_ADF = data.frame(type ="ADF", 
+                      filter_running_time   = ADF_filter_sampler_output$running_time,
+                      smoother_running_time = ADF_smoother_sampler_output$running_time,
+                      log_likelihood        = ADF_filter_sampler_output$log_likelihood,
+                      filter_distance_from_exact = mean_wasserstein_sampling(ADF_filter_sampler_output$sampling_history,
+                                                                             exact_filter_sampler_output$sampling_history),
+                      smoothing_distance_from_exact = mean_wasserstein_gaussian(ADF_smoother_sampler_output, 
+                                                                                exact_smoother_sampler_output))
+  
+  df_SMC = data.frame(type ="SMC", 
+                      filter_running_time   = SMC_filter_sampler_output$running_time,
+                      smoother_running_time = SMC_smoother_sampler_output$running_time,
+                      log_likelihood        = SMC_filter_sampler_output$log_likelihood,
+                      filter_distance_from_exact = mean_wasserstein_sampling(SMC_filter_sampler_output$sampling_history,
+                                                                             exact_filter_sampler_output$sampling_history),
+                      smoothing_distance_from_exact = mean_wasserstein_gaussian(SMC_smoother_sampler_output, 
+                                                                                exact_smoother_sampler_output))
+  
+  df_exact = data.frame(type ="exact", 
+                        filter_running_time   = exact_filter_sampler_output$running_time,
+                        smoother_running_time = exact_smoother_sampler_output$running_time,
+                        log_likelihood        = exact_filter_sampler_output$log_likelihood,
+                        filter_distance_from_exact = 0,
+                        smoothing_distance_from_exact = 0)
+  
+  data_list[[i+1]] = (df_EP)
+  data_list[[i+2]] = (df_ADF)
+  data_list[[i+3]] = (df_SMC)
+  data_list[[i+4]] = (df_exact)
+  i = i+4 
+}
 
-EP_filter_sampler_output   = EP_sampling_filter(data_multinomial_probit, parameters)
-EP_smoother_sampler_output = Gaussian_smoother(data_multinomial_probit, parameters, EP_filter_sampler_output)
+data_frame_output = bind_rows(data_list)
 
-ADF_filter_sampler_output   = ADF_sampling_filter(data_multinomial_probit, parameters, MC_samples)
-ADF_smoother_sampler_output = Gaussian_smoother(data_multinomial_probit, parameters, ADF_filter_sampler_output)
+save(data_frame_output, file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_data.Rdata"))
 
-exact_filter_sampler_output   = exact_sampling_filter(data_multinomial_probit, parameters, sliding_window, MC_samples)
-exact_smoother_sampler_output = Gaussian_smoother(data_multinomial_probit, parameters, exact_filter_sampler_output)
+# Compute mean and standard deviation for each type
+summary_table <- data_frame_output %>%
+  group_by(type) %>%
+  summarise(across(
+    where(is.numeric),
+    list(mean = ~mean(.), sd = ~sd(.)),
+    .names = "{.col}_{.fn}"
+  )) %>%
+  mutate(across(
+    ends_with("_mean"),
+    ~paste0(round(.x, 3), " ± ", round(get(sub("_mean$", "_sd", cur_column())), 3)),
+    .names = "{.col}_formatted"
+  )) %>%
+  select(type, ends_with("_formatted")) %>%
+  rename_with(~sub("_mean_formatted$", "", .x))
 
-SMC_filter_sampler_output   = SMC_sampling_filter(data_multinomial_probit, parameters, MC_samples)
-SMC_smoother_sampler_output = Gaussian_smoother(data_multinomial_probit, parameters, SMC_filter_sampler_output)
-
-df_EP = data.frame(type ="EP", 
-                   filter_running_time   = EP_filter_sampler_output$running_time,
-                   smoother_running_time = EP_smoother_sampler_output$running_time,
-                   log_likelihood        = EP_filter_sampler_output$log_likelihood,
-                   filter_distance_from_exact = mean_wasserstein_sampling(EP_filter_sampler_output$sampling_history,
-                                                                          exact_filter_sampler_output$sampling_history),
-                   smoothing_distance_from_exact = mean_wasserstein_gaussian(EP_smoother_sampler_output, 
-                                                                             exact_smoother_sampler_output))
-
-df_ADF = data.frame(type ="ADF", 
-                    filter_running_time   = ADF_filter_sampler_output$running_time,
-                    smoother_running_time = ADF_smoother_sampler_output$running_time,
-                    log_likelihood        = ADF_filter_sampler_output$log_likelihood,
-                    filter_distance_from_exact = mean_wasserstein_sampling(ADF_filter_sampler_output$sampling_history,
-                                                                           exact_filter_sampler_output$sampling_history),
-                    smoothing_distance_from_exact = mean_wasserstein_gaussian(ADF_smoother_sampler_output, 
-                                                                              exact_smoother_sampler_output))
-
-df_SMC = data.frame(type ="SMC", 
-                    filter_running_time   = SMC_filter_sampler_output$running_time,
-                    smoother_running_time = SMC_smoother_sampler_output$running_time,
-                    log_likelihood        = SMC_filter_sampler_output$log_likelihood,
-                    filter_distance_from_exact = mean_wasserstein_sampling(SMC_filter_sampler_output$sampling_history,
-                                                                           exact_filter_sampler_output$sampling_history),
-                    smoothing_distance_from_exact = mean_wasserstein_gaussian(SMC_smoother_sampler_output, 
-                                                                              exact_smoother_sampler_output))
-
-
-
+# Print table
+print(summary_table, row.names = FALSE)
 
 save(data_multinomial_probit, file    = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_data_multinomial_probit.Rdata"))
 save(EP_filter_sampler_output, file    = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_EP_filter.Rdata"))
 save(ADF_filter_sampler_output, file   = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_ADF_filter.Rdata"))
 save(exact_filter_sampler_output, file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_exact_filter.Rdata"))
-
-EP_filter_sampler_output$log_likelihood
-ADF_filter_sampler_output$log_likelihood
-exact_filter_sampler_output$log_likelihood
 
 color_list <- c("blue", "black", "red", "green", "brown")
 
@@ -236,7 +292,7 @@ for (j in 1:4) {
     y_lower = exact_filter_sampler_output$a_history[, 1*(j-1) + i] - 1.96 * sqrt(exact_filter_sampler_output$P_history[, 1*(j-1) + i, 1*(j-1) + i]),
     color = color_list[i+1],
     facet_row = j,
-    facet_col = "Sliding window"
+    facet_col = "Exact"
   )
   data_list[[length(data_list) + 1]] <- df_filter
   
