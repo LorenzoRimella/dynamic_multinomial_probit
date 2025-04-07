@@ -54,7 +54,7 @@ if (!dir.exists(directory_name)) {
   dir.create(directory_name)
 }
 
-set.seed(12345)
+set.seed(123)
 
 # GENERATE PARAMETERS
 
