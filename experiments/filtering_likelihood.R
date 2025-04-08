@@ -24,11 +24,11 @@ library(tidyr)
 
 # SET UP THE SIMULATION
 L = 3 # number of choices
-Time= 10 # number of time steps
+Time= 100 # number of time steps
 
-p = 10 # number of subject dependent covariate
+p = 3 # number of subject dependent covariate
 
-expected_m_t = 10
+expected_m_t = 80
 
 sim_name <- function(L, Time, p, expected_m_t)
 {
@@ -54,14 +54,14 @@ if (!dir.exists(directory_name)) {
   dir.create(directory_name)
 }
 
-set.seed(123)
+set.seed(12345)
 
 # GENERATE PARAMETERS
 
 beta_size = p + L
 
 a_0 = matrix(rep(0, beta_size), ncol = 1)
-P_0 = 0.1*diag(beta_size)
+P_0 = diag(beta_size)
 
 G = 0.5*diag(beta_size)
 for(i in 2:beta_size)
@@ -183,11 +183,11 @@ for(repl in 1:n_replicates)
   ADF_filter_sampler_output   = ADF_sampling_filter(data_multinomial_probit, parameters, MC_samples)
   ADF_smoother_sampler_output = Gaussian_smoother(data_multinomial_probit, parameters, ADF_filter_sampler_output)
   
-  exact_filter_sampler_output   = exact_sampling_filter(data_multinomial_probit, parameters, sliding_window, MC_samples)
-  exact_smoother_sampler_output = Gaussian_smoother(data_multinomial_probit, parameters, exact_filter_sampler_output)
+  exact_filter_sampler_output   = EP_filter_sampler_output # exact_sampling_filter(data_multinomial_probit, parameters, sliding_window, MC_samples)
+  exact_smoother_sampler_output = EP_smoother_sampler_output # Gaussian_smoother(data_multinomial_probit, parameters, exact_filter_sampler_output)
   
-  SMC_filter_sampler_output   = SMC_sampling_filter(data_multinomial_probit, parameters, MC_samples)
-  SMC_smoother_sampler_output = Gaussian_smoother(data_multinomial_probit, parameters, SMC_filter_sampler_output)
+  SMC_filter_sampler_output   = EP_filter_sampler_output # SMC_sampling_filter(data_multinomial_probit, parameters, MC_samples)
+  SMC_smoother_sampler_output = EP_smoother_sampler_output # Gaussian_smoother(data_multinomial_probit, parameters, SMC_filter_sampler_output)
   
   df_EP = data.frame(type ="EP", 
                      filter_running_time   = EP_filter_sampler_output$running_time,
