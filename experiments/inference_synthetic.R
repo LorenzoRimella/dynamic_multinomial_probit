@@ -21,10 +21,9 @@ if (!dir.exists(directory_name)) {
 set.seed(123)
 
 # GENERATE PARAMETERS
-# check the loglikelihood for exact
 
 L = 5 # number of choices
-Time= 50 # number of time steps
+Time= 20 # number of time steps
 
 p = 10 # number of subject dependent covariate
 
@@ -69,7 +68,7 @@ for(i in 2:L)
 
 parameters = list(a_0 = a_0, P_0 = P_0, G = G, W = W, Sigma = Sigma)
 
-hyperparameters = list(lambda_M = 10, N_max = 30, prediction_bool= TRUE)
+hyperparameters = list(lambda_M = 10, N_max = 30, prediction_bool= FALSE)
 
 X_cov = matrix(runif(hyperparameters$N_max*p, -0.5, 0.5), nrow = hyperparameters$N_max, ncol = p)
 
@@ -108,6 +107,17 @@ plot_2 =ggplot(df_beta_long, aes(x = Time, y = Value, color = Type)) +
   theme_minimal() 
 
 grid.arrange(plot_1, plot_2, ncol = 1)
+
+# True likelihood
+
+ADF_filter_output_exact = ADF_sampling_filter(data_multinomial_probit, parameters)
+
+ident_parameters = list(a_0 = a_0, P_0 = 100*P_0, G = G, W = 100*W, Sigma = 100*Sigma)
+ident_ADF_filter_output_exact = ADF_sampling_filter(data_multinomial_probit, ident_parameters)
+
+
+ident_parameters = list(a_0 = a_0, P_0 = 100*P_0, G = G, W = 100*W, Sigma = 100*Sigma)
+ident_ADF_filter_output_exact = ADF_sampling_filter(data_multinomial_probit, ident_parameters)
 
 # EM algorithm
 EM_iterations = 20

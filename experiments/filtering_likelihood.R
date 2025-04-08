@@ -176,6 +176,7 @@ i = 0
 
 for(repl in 1:n_replicates)
 {
+  print(repl)
   EP_filter_sampler_output   = EP_sampling_filter(data_multinomial_probit, parameters)
   EP_smoother_sampler_output = Gaussian_smoother(data_multinomial_probit, parameters, EP_filter_sampler_output)
   

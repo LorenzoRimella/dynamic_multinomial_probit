@@ -52,6 +52,11 @@ log_Psi<- function(r_Psi, Q_Psi)
   return( (1/2)*(t(r_Psi)%*% solve(Q_Psi) %*% r_Psi) + (p/2)*log(2*pi) - (1/2)*log(abs(det(Q_Psi))))
 }
 
+# stopping criteria on maximum relative change of logZ_i-logZ_{i-1}, r_i..., Q_i...
+# use a threshold of 10-4,10-5
+# stabilize EP by convex combination alpha=0.999 (close to new update)
+
+
 site_i_update <- function(i, x_t, y_t, r, Q, logZ, parameters, MC_samples)
 {
   r_minus_i = t(t(apply(r[-i,], 2, sum)))

@@ -1,6 +1,5 @@
 SMC_sampling_filter <- function(data, parameters, MC_samples = 1000)
 {
-  plan(multisession)
   
   start_time <- Sys.time()
   L = dim(parameters$Sigma)[1]
