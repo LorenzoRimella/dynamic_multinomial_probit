@@ -52,10 +52,7 @@ log_Psi<- function(r_Psi, Q_Psi)
   return( (1/2)*(t(r_Psi)%*% solve(Q_Psi) %*% r_Psi) + (p/2)*log(2*pi) - (1/2)*log(abs(det(Q_Psi))))
 }
 
-# stopping criteria on maximum relative change of logZ_i-logZ_{i-1}, r_i..., Q_i...
-# use a threshold of 10-4,10-5
 # stabilize EP by convex combination alpha=0.999 (close to new update)
-
 
 site_i_update <- function(i, x_t, y_t, r, Q, logZ, parameters, MC_samples)
 {
@@ -85,7 +82,20 @@ site_i_update <- function(i, x_t, y_t, r, Q, logZ, parameters, MC_samples)
   return(list(r = r, Q = Q, logZ = logZ))
 }
 
-EP_sampling_correction <- function(x_t, y_t, a_t_tm1, P_t_tm1, parameters, EP_iterations, MC_samples)
+EP_log_likelihood_increments <- function(r, Q, logZ)
+{
+  Q_0 = Q[1,,]
+  r_0 = r[1,]
+  
+  r_sum = t(t(apply(r, 2, sum)))
+  Q_sum = apply(Q, MARGIN = c(2,3), sum)
+  
+  log_likelihood_increment = log_Psi(r_sum, Q_sum) - log_Psi(r_0, Q_0) - sum(logZ)
+  
+  return(log_likelihood_increment)
+}
+
+EP_sampling_correction <- function(x_t, y_t, a_t_tm1, P_t_tm1, parameters, EP_max_iterations, MC_samples, tol)
 {
   L = dim(x_t)[3]
   m_t = dim(x_t)[1]
@@ -100,11 +110,16 @@ EP_sampling_correction <- function(x_t, y_t, a_t_tm1, P_t_tm1, parameters, EP_it
   Q[1,,] = Q_0
   r[1,]  = r_0
   
-  for(iteration in 1:EP_iterations)
+  Q_current = Q
+  r_current = r
+  logZ_current = logZ
+  iteration = 1
+  max_diff_vec = array(NA, dim = c(EP_max_iterations+1))
+  max_diff= 100
+  while((iteration<EP_max_iterations)&(max_diff>tol))
   {
     for(i in 2:(m_t+1))
     { 
-      # print(i)
       EP_parameters = site_i_update(i, x_t, y_t, r, Q, logZ, parameters, MC_samples)
       
       Q = EP_parameters$Q
@@ -112,6 +127,15 @@ EP_sampling_correction <- function(x_t, y_t, a_t_tm1, P_t_tm1, parameters, EP_it
       
       logZ = EP_parameters$logZ
     } 
+    
+    max_diff_vec[iteration] = abs(EP_log_likelihood_increments(r, Q, logZ) - EP_log_likelihood_increments(r_current, Q_current, logZ_current))
+    
+    max_diff = max_diff_vec[iteration]
+    
+    Q_current = Q
+    r_current = r
+    logZ_current = logZ
+    iteration = iteration+1
   }
   
   r_sum = t(t(apply(r, 2, sum)))
@@ -131,7 +155,7 @@ EP_sampling_correction <- function(x_t, y_t, a_t_tm1, P_t_tm1, parameters, EP_it
 }
 
 
-EP_sampling_filter <- function(data, parameters, EP_iterations = 5, MC_samples = 10000)
+EP_sampling_filter <- function(data, parameters, EP_max_iterations = 5, MC_samples = 10000, tol = 10e-3)
 {
   start_time <- Sys.time()
   L = dim(parameters$Sigma)[1]
@@ -160,7 +184,7 @@ EP_sampling_filter <- function(data, parameters, EP_iterations = 5, MC_samples =
     
     y_t = data$Y[[t]]
     x_t = data$X[[t]]
-    EP_correction_output = EP_sampling_correction(x_t, y_t, a_t_tm1, P_t_tm1, parameters, EP_iterations, MC_samples)
+    EP_correction_output = EP_sampling_correction(x_t, y_t, a_t_tm1, P_t_tm1, parameters, EP_iterations, MC_samples, tol)
     
     a_history[t+1,]  = EP_correction_output$a_t
     P_history[t+1,,] = EP_correction_output$P_t 

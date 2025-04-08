@@ -1,17 +1,41 @@
-source("R_directory/dynamic_multinomial_probit/scripts/model.R")
-source("R_directory/dynamic_multinomial_probit/scripts/multinomial_probit_filter_EP.R")
-source("R_directory/dynamic_multinomial_probit/scripts/multinomial_probit_filter_ADF.R")
-source("R_directory/dynamic_multinomial_probit/scripts/multinomial_probit_filter_exact.R")
-source("R_directory/dynamic_multinomial_probit/scripts/multinomial_probit_gaussian_smoothing.R")
-source("R_directory/dynamic_multinomial_probit/scripts/multinomial_probit_EM.R")
+rm(list=ls())
+# Set the directory to the path of the current script
+library(rstudioapi)
+setwd(dirname(rstudioapi::getSourceEditorContext()$path))
+
+source("../scripts/utils.R")
+source("../scripts/model.R")
+source("../scripts/multinomial_probit_filter_EP.R")
+source("../scripts/multinomial_probit_filter_SMC.R")
+source("../scripts/multinomial_probit_filter_ADF.R")
+source("../scripts/multinomial_probit_filter_exact.R")
+source("../scripts/multinomial_probit_gaussian_smoothing.R")
+source("../scripts/multinomial_probit_EM.R")
 
 library(ggplot2)
 library(tidyr)
 library(dplyr)
 library(gridExtra)
+library(transport)
+library(expm) # for sqrtm (matrix square root)
+library(future.apply)
 
-name_simulation = "inference_synthetic_ADF"
-directory_name  = "R_directory/dynamic_multinomial_probit/data/inference_synthetic_ADF/"
+library(dplyr)
+library(tidyr)
+
+# SET UP THE SIMULATION
+L = 3 # number of choices
+Time= 20 # number of time steps
+
+p = 5 # number of subject dependent covariate
+
+expected_m_t = 20
+
+name_init="inference_synthetic_ADF_trace_p_"
+
+output_name = sim_name(name_init, L, Time, p, expected_m_t)
+name_simulation = output_name$name
+directory_name  = paste("../data/", output_name$name_for_dir, sep ="")
 
 # Create the directory if needed
 if (!dir.exists(directory_name)) {
@@ -22,15 +46,10 @@ set.seed(123)
 
 # GENERATE PARAMETERS
 
-L = 5 # number of choices
-Time= 20 # number of time steps
-
-p = 10 # number of subject dependent covariate
-
 beta_size = p + L
 
 a_0 = matrix(rep(0, beta_size), ncol = 1)
-P_0 = 0.1*diag(beta_size)
+P_0 = diag(beta_size)
 
 G = 0.5*diag(beta_size)
 for(i in 2:beta_size)
@@ -54,21 +73,21 @@ ggplot(df, aes(x, y, fill = z)) +
   coord_fixed() +
   theme_minimal()
 
-W = 0.1*diag(beta_size)
+W = 0.05*diag(beta_size)
 
-Sigma = 0.5*diag(L)
+Sigma = 0.2*diag(L)
 for(i in 2:L)
 {
   sign = sample(c(-1, 1), 1)
-  Sigma[i,i-1] = sign*0.2
-  Sigma[i-1,i] = sign*0.2
+  Sigma[i,i-1] = sign*0.1
+  Sigma[i-1,i] = sign*0.1
 }
 
 # GENERATE DATA
+# Trace=1
+parameters = list(a_0 = a_0, P_0 = P_0/sum(diag(Sigma)), G = G, W = W/sum(diag(Sigma)), Sigma = Sigma/sum(diag(Sigma)))
 
-parameters = list(a_0 = a_0, P_0 = P_0, G = G, W = W, Sigma = Sigma)
-
-hyperparameters = list(lambda_M = 10, N_max = 30, prediction_bool= FALSE)
+hyperparameters = list(lambda_M = expected_m_t, N_max = 4*expected_m_t, prediction_bool= FALSE)
 
 X_cov = matrix(runif(hyperparameters$N_max*p, -0.5, 0.5), nrow = hyperparameters$N_max, ncol = p)
 
@@ -110,19 +129,13 @@ grid.arrange(plot_1, plot_2, ncol = 1)
 
 # True likelihood
 
-ADF_filter_output_exact = ADF_sampling_filter(data_multinomial_probit, parameters)
-
-ident_parameters = list(a_0 = a_0, P_0 = 100*P_0, G = G, W = 100*W, Sigma = 100*Sigma)
-ident_ADF_filter_output_exact = ADF_sampling_filter(data_multinomial_probit, ident_parameters)
-
-
-ident_parameters = list(a_0 = a_0, P_0 = 100*P_0, G = G, W = 100*W, Sigma = 100*Sigma)
-ident_ADF_filter_output_exact = ADF_sampling_filter(data_multinomial_probit, ident_parameters)
+ADF_filter_output_truth   = ADF_sampling_filter(data_multinomial_probit, parameters)
+ADF_smoother_output_truth = Gaussian_smoother(data_multinomial_probit, parameters, ADF_filter_output_truth)
 
 # EM algorithm
-EM_iterations = 20
+EM_iterations = 100
 learn_G = TRUE
-learn_W = FALSE
+learn_W = TRUE
 learn_Sigma = TRUE
 
 if((learn_G & learn_W) & !(learn_Sigma))
@@ -157,23 +170,33 @@ if(learn_Sigma & learn_G & learn_W)
                             Sigma = diag(L))
 }
 
-EM_output_ADF = multinomial_probit_EM(data_multinomial_probit, ADF_sampling_filter, initial_parameters, 
+EM_output_ADF = multinomial_probit_EM(data_multinomial_probit, EP_sampling_filter, initial_parameters,
                                   EM_iterations,
-                                  learn_G, learn_W, learn_Sigma, type = "ADF")
+                                  learn_G, learn_W, learn_Sigma, type = "EP")
 
-save(data_multinomial_probit, file    = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_data_multinomial_probit.Rdata"))
-save(EM_output_ADF, file    = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_EM_output.Rdata"))
+# EM_output_ADF = multinomial_probit_EM_trace(data_multinomial_probit, ADF_sampling_filter, initial_parameters, 
+#                                             EM_iterations,
+#                                             learn_G, learn_W, learn_Sigma, type = "ADF")
 
-ADF_filter_output_exact = ADF_sampling_filter(data_multinomial_probit, parameters)
-ADF_smoother_output_exact = Gaussian_smoother(data_multinomial_probit, parameters, ADF_filter_output_exact)
+save(data_multinomial_probit, file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_data_multinomial_probit.Rdata"))
+save(ADF_filter_output_truth, file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_ADF_truth.Rdata"))
+save(EM_output_ADF,           file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_ADF_EM.Rdata"))
 
-EM_parameters = list(a_0 = a_0, P_0 = P_0, 
+Trace_EM = sum(diag(EM_output_ADF$Sigma_history[EM_iterations+1,,]))
+EM_parameters = list(a_0 = a_0, P_0 = P_0/Trace_EM, 
                      G = EM_output_ADF$G_history[EM_iterations+1,,], 
-                     W = W, 
-                     Sigma = EM_output_ADF$Sigma_history[EM_iterations+1,,])
-                     
-ADF_filter_output_EM = ADF_sampling_filter(data_multinomial_probit, EM_parameters)
+                     W = W/Trace_EM, 
+                     Sigma = EM_output_ADF$Sigma_history[EM_iterations+1,,]/Trace_EM)
+
+ADF_filter_output_EM   = ADF_sampling_filter(data_multinomial_probit, EM_parameters)
 ADF_smoother_output_EM = Gaussian_smoother(data_multinomial_probit, EM_parameters, ADF_filter_output_EM)
+
+df_EM_ADF = data.frame(type ="EM ADF", 
+                   log_likelihood_distance    = ADF_filter_output_EM$log_likelihood-ADF_filter_output_truth$log_likelihood,
+                   filter_distance_from_truth = mean_wasserstein_sampling(ADF_filter_output_EM$sampling_history,
+                                                                          ADF_filter_output_truth$sampling_history),
+                   smoothing_distance_from_truth = mean_wasserstein_gaussian(ADF_smoother_output_EM, 
+                                                                             ADF_smoother_output_truth))
 
 # Create a data frame for the line plot
 df <- data.frame(
@@ -184,7 +207,7 @@ df <- data.frame(
 # Create the plot
 ggplot() +
   geom_line(data = df, aes(x = iterations, y = log_likelihood, color = "EM Log-Likelihood"), size = 1) + # Line plot
-  geom_hline(aes(yintercept = ADF_filter_output_exact$log_likelihood, color = "ADF Log-Likelihood"), 
+  geom_hline(aes(yintercept = ADF_filter_output_truth$log_likelihood, color = "ADF Log-Likelihood"), 
              linetype = "dashed", linewidth = 1) + # Horizontal line
   labs(
     x = "Iterations",  # X-axis label
@@ -196,71 +219,6 @@ ggplot() +
     labels = c("EM Log-Likelihood" = "EM Log-Likelihood", "ADF Log-Likelihood" = "EP Exact Output") # Custom labels
   ) +
   theme_minimal()  # Minimal theme
-
-# Extract the matrix dimensions
-n <- 3 #dim(EM_output_ADF$G_history)[2] # Number of rows/columns in G
-
-# Reshape data for ggplot
-df_list <- lapply(1:n, function(i) {
-  lapply(1:n, function(j) {
-    data.frame(
-      iteration = 1:(EM_iterations+1),
-      G_value = EM_output_ADF$G_history[1:(EM_iterations+1), i, j],
-      i = i,
-      j = j,
-      true_value = parameters$G[i, j]
-    )
-  })
-})
-df <- do.call(rbind, do.call(rbind, df_list))
-
-# Create the plot
-ggplot(df, aes(x = iteration, y = G_value)) +
-  geom_line(color = "blue", size = 1) +                           # Line plot for G history
-  geom_hline(aes(yintercept = true_value),                       # Horizontal line for true value
-             color = "red", linetype = "dashed", size = 1) +
-  facet_grid(i ~ j, labeller = label_both) +                     # Subfigures for each (i, j)
-  labs(
-    x = "Iterations",                                            # X-axis label
-    y = "G Value",                                               # Y-axis label
-  ) +
-  theme_minimal() +
-  theme(
-    strip.text = element_text(size = 8)                          # Adjust facet label size
-  )
-
-# Extract the matrix dimensions
-n <- 3 # dim(EM_output$Sigma_history)[2] # Number of rows/columns in Sigma
-
-# Reshape data for ggplot
-df_list <- lapply(1:n, function(i) {
-  lapply(1:n, function(j) {
-    data.frame(
-      iteration = 1:(EM_iterations+1),
-      Sigma_value = EM_output_ADF$Sigma_history[1:(EM_iterations+1), i, j],
-      i = i,
-      j = j,
-      true_value = parameters$Sigma[i, j]
-    )
-  })
-})
-
-df <- do.call(rbind, do.call(rbind, df_list))
-
-# Create the plot
-ggplot(df, aes(x = iteration, y = Sigma_value)) +
-  geom_line(color = "blue", size = 1) +                           # Line plot for G history
-  geom_hline(aes(yintercept = true_value),                       # Horizontal line for true value
-             color = "red", linetype = "dashed", size = 1) +
-  facet_grid(i ~ j, labeller = label_both) +                     # Subfigures for each (i, j)
-  labs(
-    x = "Iterations",                                            # X-axis label
-    y = "Sigma Value",                                               # Y-axis label
-  ) +
-  theme_minimal() +
-  theme(
-    strip.text = element_text(size = 8)                          # Adjust facet label size
-  )
 
 
 color_list <- c("blue", "black", "red", "green", "brown")
@@ -286,9 +244,9 @@ for (j in 1:4) {
   df_filter <- data.frame(
     x = seq(0, Time, length.out = Time+1),
     y1 = data_multinomial_probit$Beta[, 1*(j-1) + i],
-    y2 = ADF_filter_output_exact$a_history[, 1*(j-1) + i],
-    y_upper = ADF_filter_output_exact$a_history[, 1*(j-1) + i] + 1.96 * sqrt(ADF_filter_output_exact$P_history[, 1*(j-1) + i, 1*(j-1) + i]),
-    y_lower = ADF_filter_output_exact$a_history[, 1*(j-1) + i] - 1.96 * sqrt(ADF_filter_output_exact$P_history[, 1*(j-1) + i, 1*(j-1) + i]),
+    y2 = ADF_filter_output_truth$a_history[, 1*(j-1) + i],
+    y_upper = ADF_filter_output_truth$a_history[, 1*(j-1) + i] + 1.96 * sqrt(ADF_filter_output_truth$P_history[, 1*(j-1) + i, 1*(j-1) + i]),
+    y_lower = ADF_filter_output_truth$a_history[, 1*(j-1) + i] - 1.96 * sqrt(ADF_filter_output_truth$P_history[, 1*(j-1) + i, 1*(j-1) + i]),
     color = color_list[i+1],
     facet_row = j,
     facet_col = "True parameters"
@@ -314,7 +272,7 @@ ggplot(plot_data, aes(x = x)) +
 # PLOT SMOOTHING
 # Create a data frame for plotting
 data_list <- list()
-for (j in 5:10) {
+for (j in 1:4) {
   i =1
   
   df_filter <- data.frame(
@@ -332,9 +290,9 @@ for (j in 5:10) {
   df_filter <- data.frame(
     x = seq(0, Time, length.out = Time+1),
     y1 = data_multinomial_probit$Beta[, 1*(j-1) + i],
-    y2 = ADF_smoother_output_exact$a_history[, 1*(j-1) + i],
-    y_upper = ADF_smoother_output_exact$a_history[, 1*(j-1) + i] + 1.96 * sqrt(ADF_smoother_output_exact$P_history[, 1*(j-1) + i, 1*(j-1) + i]),
-    y_lower = ADF_smoother_output_exact$a_history[, 1*(j-1) + i] - 1.96 * sqrt(ADF_smoother_output_exact$P_history[, 1*(j-1) + i, 1*(j-1) + i]),
+    y2 = ADF_smoother_output_truth$a_history[, 1*(j-1) + i],
+    y_upper = ADF_smoother_output_truth$a_history[, 1*(j-1) + i] + 1.96 * sqrt(ADF_smoother_output_truth$P_history[, 1*(j-1) + i, 1*(j-1) + i]),
+    y_lower = ADF_smoother_output_truth$a_history[, 1*(j-1) + i] - 1.96 * sqrt(ADF_smoother_output_truth$P_history[, 1*(j-1) + i, 1*(j-1) + i]),
     color = color_list[i+1],
     facet_row = j,
     facet_col = "Exact"
@@ -356,3 +314,69 @@ ggplot(plot_data, aes(x = x)) +
   theme_minimal() +
   theme( panel.spacing = unit(1, "lines"))+
   labs(x = "Time", y = "Beta")    
+
+
+# # Extract the matrix dimensions
+# n <- 3 #dim(EM_output_ADF$G_history)[2] # Number of rows/columns in G
+# 
+# # Reshape data for ggplot
+# df_list <- lapply(1:n, function(i) {
+#   lapply(1:n, function(j) {
+#     data.frame(
+#       iteration = 1:(EM_iterations+1),
+#       G_value = EM_output_ADF$G_history[1:(EM_iterations+1), i, j],
+#       i = i,
+#       j = j,
+#       true_value = parameters$G[i, j]
+#     )
+#   })
+# })
+# df <- do.call(rbind, do.call(rbind, df_list))
+# 
+# # Create the plot
+# ggplot(df, aes(x = iteration, y = G_value)) +
+#   geom_line(color = "blue", size = 1) +                           # Line plot for G history
+#   geom_hline(aes(yintercept = true_value),                       # Horizontal line for true value
+#              color = "red", linetype = "dashed", size = 1) +
+#   facet_grid(i ~ j, labeller = label_both) +                     # Subfigures for each (i, j)
+#   labs(
+#     x = "Iterations",                                            # X-axis label
+#     y = "G Value",                                               # Y-axis label
+#   ) +
+#   theme_minimal() +
+#   theme(
+#     strip.text = element_text(size = 8)                          # Adjust facet label size
+#   )
+# 
+# # Extract the matrix dimensions
+# n <- 3 # dim(EM_output$Sigma_history)[2] # Number of rows/columns in Sigma
+# 
+# # Reshape data for ggplot
+# df_list <- lapply(1:n, function(i) {
+#   lapply(1:n, function(j) {
+#     data.frame(
+#       iteration = 1:(EM_iterations+1),
+#       Sigma_value = EM_output_ADF$Sigma_history[1:(EM_iterations+1), i, j],
+#       i = i,
+#       j = j,
+#       true_value = parameters$Sigma[i, j]
+#     )
+#   })
+# })
+# 
+# df <- do.call(rbind, do.call(rbind, df_list))
+# 
+# # Create the plot
+# ggplot(df, aes(x = iteration, y = Sigma_value)) +
+#   geom_line(color = "blue", size = 1) +                           # Line plot for G history
+#   geom_hline(aes(yintercept = true_value),                       # Horizontal line for true value
+#              color = "red", linetype = "dashed", size = 1) +
+#   facet_grid(i ~ j, labeller = label_both) +                     # Subfigures for each (i, j)
+#   labs(
+#     x = "Iterations",                                            # X-axis label
+#     y = "Sigma Value",                                               # Y-axis label
+#   ) +
+#   theme_minimal() +
+#   theme(
+#     strip.text = element_text(size = 8)                          # Adjust facet label size
+#   )

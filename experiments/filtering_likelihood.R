@@ -3,9 +3,11 @@ rm(list=ls())
 library(rstudioapi)
 setwd(dirname(rstudioapi::getSourceEditorContext()$path))
 
+source("../scripts/utils.R")
 source("../scripts/model.R")
 source("../scripts/multinomial_probit_filter_EP.R")
 source("../scripts/multinomial_probit_filter_SMC.R")
+
 source("../scripts/multinomial_probit_filter_ADF.R")
 source("../scripts/multinomial_probit_filter_exact.R")
 source("../scripts/multinomial_probit_gaussian_smoothing.R")
@@ -24,28 +26,15 @@ library(tidyr)
 
 # SET UP THE SIMULATION
 L = 3 # number of choices
-Time= 100 # number of time steps
+Time= 10 # number of time steps
 
-p = 3 # number of subject dependent covariate
+p = 5 # number of subject dependent covariate
 
-expected_m_t = 80
+expected_m_t = 5
 
-sim_name <- function(L, Time, p, expected_m_t)
-{
-  string = paste("filt_smoot_lik_p_", p, sep = "")
-  string = paste(string, "_mt_", sep = "")
-  string = paste(string, expected_m_t, sep = "")
-  string = paste(string, "_L_", sep = "")
-  string = paste(string, L, sep = "")
-  string = paste(string, "_Time_", sep = "")
-  string = paste(string, Time, sep = "")
-  
-  dir_string = paste(string, "/", sep ="")
-  
-  return(list(name = string, name_for_dir = dir_string))
-}
+name_init="filt_smoot_lik_p_"
 
-output_name = sim_name(L, Time, p, expected_m_t)
+output_name = sim_name(name_init, L, Time, p, expected_m_t)
 name_simulation = output_name$name
 directory_name  = paste("../data/", output_name$name_for_dir, sep ="")
 
@@ -141,32 +130,10 @@ grid.arrange(plot_1, plot_2, ncol = 1)
 
 # COMPUTE FILTERS
 EP_iterations = 5
+tol= 10e-4
 MC_samples = 1000
 
-sliding_window = 11
-
-wasserstein_distance_gaussian <- function(mu1, mu2, Sigma1, Sigma2) {
-  term1 <- sum((mu1 - mu2)^2)
-  sqrt_Sigma1 <- sqrtm(Sigma1)
-  term2 <- sum(diag(Sigma1)) + sum(diag(Sigma2)) - 2*sum(diag(sqrtm(sqrt_Sigma1 %*% Sigma2 %*% sqrt_Sigma1)))
-  return(sqrt(term1 + term2))
-}
-
-mean_wasserstein_gaussian <- function(output_1, output_2)
-{
-  Time = dim(output_1$a_history)[1]
-  return(mean(sapply(seq(1, Time), function(t) wasserstein_distance_gaussian(output_1$a_history[t,], output_2$a_history[t,], 
-                                                                             output_1$P_history[t,,], output_2$P_history[t,,]))))
-}
-
-mean_wasserstein_sampling <- function(sampling_1, sampling_2)
-{
-  Time = dim(sampling_1)[1]
-  p = dim(sampling_1)[2]
-  
-  return(mean(sapply(seq(1, Time), function(t) mean(sapply(seq(1, p), 
-                                                           function(i) wasserstein1d(sampling_1[t,i,], sampling_2[t,i,], p = 2))))))
-}
+sliding_window = 10
 
 # SAME DATA but different replicates
 
@@ -177,17 +144,21 @@ i = 0
 for(repl in 1:n_replicates)
 {
   print(repl)
-  EP_filter_sampler_output   = EP_sampling_filter(data_multinomial_probit, parameters)
+  print("EP")
+  EP_filter_sampler_output   = EP_sampling_filter(data_multinomial_probit, parameters, EP_max_iterations, MC_samples, tol)
   EP_smoother_sampler_output = Gaussian_smoother(data_multinomial_probit, parameters, EP_filter_sampler_output)
   
+  print("ADF")
   ADF_filter_sampler_output   = ADF_sampling_filter(data_multinomial_probit, parameters, MC_samples)
   ADF_smoother_sampler_output = Gaussian_smoother(data_multinomial_probit, parameters, ADF_filter_sampler_output)
   
-  exact_filter_sampler_output   = EP_filter_sampler_output # exact_sampling_filter(data_multinomial_probit, parameters, sliding_window, MC_samples)
-  exact_smoother_sampler_output = EP_smoother_sampler_output # Gaussian_smoother(data_multinomial_probit, parameters, exact_filter_sampler_output)
+  print("exact")
+  exact_filter_sampler_output   = exact_sampling_filter(data_multinomial_probit, parameters, sliding_window, MC_samples)
+  exact_smoother_sampler_output = Gaussian_smoother(data_multinomial_probit, parameters, exact_filter_sampler_output)
   
-  SMC_filter_sampler_output   = EP_filter_sampler_output # SMC_sampling_filter(data_multinomial_probit, parameters, MC_samples)
-  SMC_smoother_sampler_output = EP_smoother_sampler_output # Gaussian_smoother(data_multinomial_probit, parameters, SMC_filter_sampler_output)
+  print("SMC")
+  SMC_filter_sampler_output   = SMC_sampling_filter(data_multinomial_probit, parameters, MC_samples)
+  SMC_smoother_sampler_output = Gaussian_smoother(data_multinomial_probit, parameters, SMC_filter_sampler_output)
   
   df_EP = data.frame(type ="EP", 
                      filter_running_time   = EP_filter_sampler_output$running_time,
