@@ -128,7 +128,9 @@ EP_sampling_correction <- function(x_t, y_t, a_t_tm1, P_t_tm1, parameters, EP_ma
       logZ = EP_parameters$logZ
     } 
     
-    max_diff_vec[iteration] = abs(EP_log_likelihood_increments(r, Q, logZ) - EP_log_likelihood_increments(r_current, Q_current, logZ_current))
+    new_EP_loglike = EP_log_likelihood_increments(r, Q, logZ)
+    old_EP_loglike = EP_log_likelihood_increments(r_current, Q_current, logZ_current)
+    max_diff_vec[iteration] = abs( new_EP_loglike - old_EP_loglike)/abs(old_EP_loglike)
     
     max_diff = max_diff_vec[iteration]
     
