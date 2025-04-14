@@ -26,7 +26,8 @@ gaussian_prior <- function(data, parameters)
 }
 
 multinomial_probit_EM <- function(data, filter, initial_parameters, EM_iterations = 100, 
-                                  learn_G = TRUE, learn_W = TRUE, learn_Sigma = TRUE, type = "ADF")
+                                  learn_G = TRUE, learn_W = TRUE, learn_Sigma = TRUE, type = "std",
+                                  log = list(FALSE, c(NA, NA)))
 {
   Time = length(data$Y)
   sum_m_t = sum(sapply(data$Y, length)) #Reduce("+", lapply(seq(1, Time), function(t) length(data$Y[[t]])))
@@ -54,7 +55,6 @@ multinomial_probit_EM <- function(data, filter, initial_parameters, EM_iteration
     }
     G_history[iteration,,] = parameters_current$G
     
-    
     if(learn_W)
     {
       print("Matrix W")
@@ -68,6 +68,21 @@ multinomial_probit_EM <- function(data, filter, initial_parameters, EM_iteration
       print(parameters_current$Sigma)
     }
     Sigma_history[iteration,,] = parameters_current$Sigma
+    
+    if(learn_Sigma)
+    {
+      eps_history = epsilon_smoother(data, parameters_current, filter_output, smoother_output, type)
+      
+      eps_SUN_sample = lapply(seq(1, Time), function(t) lapply(seq(1, length(data$Y[[t]])), function(i) rSUN(eps_history[[t]][[i]], 1000)))
+      
+      eps_second_moment = lapply(seq(1, Time),
+                                 function(t) lapply(seq(1, length(data$Y[[t]])),
+                                                    function(i) cov(t(eps_SUN_sample[[t]][[i]])) + (t(t(apply(eps_SUN_sample[[t]][[i]], 1, mean))) %*% t(apply(eps_SUN_sample[[t]][[i]], 1, mean)))))
+      
+      new_Sigma = Reduce("+", lapply(seq(1, Time), function(t) Reduce("+", eps_second_moment[[t]])))/sum_m_t
+      
+      parameters_current$Sigma = (new_Sigma + t(new_Sigma))/2
+    }
     
     if(learn_G)
     {
@@ -105,19 +120,20 @@ multinomial_probit_EM <- function(data, filter, initial_parameters, EM_iteration
     parameters_current$G = new_G
     parameters_current$W = new_W
     
-    if(learn_Sigma)
+    if(log[[1]])
     {
-      eps_history = epsilon_smoother(data, parameters_current, filter_output, smoother_output, type)
+      log_likelihood_history_subset = log_likelihood_history[1:iteration]
+      G_history_subset     = G_history[1:iteration, , ]
+      W_history_subset     = W_history[1:iteration, , ]
+      Sigma_history_subset = Sigma_history[1:iteration, , ]
       
-      eps_SUN_sample = lapply(seq(1, Time), function(t) lapply(seq(1, length(data$Y[[t]])), function(i) rSUN(eps_history[[t]][[i]], 1000)))
+      EM_subset_output = list( log_likelihood_history = log_likelihood_history_subset, 
+                               G_history = G_history_subset, 
+                               W_history = W_history_subset,
+                               Sigma_history = Sigma_history_subset)
       
-      eps_second_moment = lapply(seq(1, Time),
-                                 function(t) lapply(seq(1, length(data$Y[[t]])),
-                                                    function(i) cov(t(eps_SUN_sample[[t]][[i]])) + (t(t(apply(eps_SUN_sample[[t]][[i]], 1, mean))) %*% t(apply(eps_SUN_sample[[t]][[i]], 1, mean)))))
-      
-      new_Sigma = Reduce("+", lapply(seq(1, Time), function(t) Reduce("+", eps_second_moment[[t]])))/sum_m_t
-      
-      parameters_current$Sigma = (new_Sigma + t(new_Sigma))/2
+      save(EM_subset_output, file = paste(paste(log[[2]][1], sep = "", log[[2]][2]), sep = "", "_subset_EM.Rdata"))
+
     }
     
   }
@@ -156,12 +172,18 @@ multinomial_probit_EM <- function(data, filter, initial_parameters, EM_iteration
 }
 
 multinomial_probit_EM_trace <- function(data, filter, initial_parameters, EM_iterations = 100, 
-                                  learn_G = TRUE, learn_W = TRUE, learn_Sigma = TRUE, type = "ADF")
+                                  learn_G = TRUE, learn_W = TRUE, learn_Sigma = TRUE, type = "std",
+                                  normalization = 1, log = c(FALSE, NA))
 {
   Time = length(data$Y)
   sum_m_t = sum(sapply(data$Y, length)) #Reduce("+", lapply(seq(1, Time), function(t) length(data$Y[[t]])))
+  L = dim(initial_parameters$Sigma)[1]
   
   parameters_current = initial_parameters
+  trace_Sigma = sum(diag(parameters_current$Sigma))
+  parameters_current$P_0   = normalization*parameters_current$P_0/trace_Sigma
+  parameters_current$W     = normalization*parameters_current$W/trace_Sigma
+  parameters_current$Sigma = normalization*parameters_current$Sigma/trace_Sigma
   
   log_likelihood_history = array(NA, dim = c(EM_iterations+1))
   
@@ -200,6 +222,23 @@ multinomial_probit_EM_trace <- function(data, filter, initial_parameters, EM_ite
     }
     Sigma_history[iteration,,] = parameters_current$Sigma
     
+    P_0_history[iteration,,] = parameters_current$P_0
+    
+    if(learn_Sigma)
+    {
+      eps_history = epsilon_smoother(data, parameters_current, filter_output, smoother_output, type)
+      
+      eps_SUN_sample = lapply(seq(1, Time), function(t) lapply(seq(1, length(data$Y[[t]])), function(i) rSUN(eps_history[[t]][[i]], 1000)))
+      
+      eps_second_moment = lapply(seq(1, Time),
+                                 function(t) lapply(seq(1, length(data$Y[[t]])),
+                                                    function(i) cov(t(eps_SUN_sample[[t]][[i]])) + (t(t(apply(eps_SUN_sample[[t]][[i]], 1, mean))) %*% t(apply(eps_SUN_sample[[t]][[i]], 1, mean)))))
+      
+      new_Sigma = Reduce("+", lapply(seq(1, Time), function(t) Reduce("+", eps_second_moment[[t]])))/sum_m_t
+      
+      parameters_current$Sigma = (new_Sigma + t(new_Sigma))/2
+    }
+    
     if(learn_G)
     {
       a_0_Tm1_T = smoother_output$a_history[1:Time,]
@@ -236,25 +275,28 @@ multinomial_probit_EM_trace <- function(data, filter, initial_parameters, EM_ite
     parameters_current$G = new_G
     parameters_current$W = new_W
     
-    if(learn_Sigma)
-    {
-      eps_history = epsilon_smoother(data, parameters_current, filter_output, smoother_output, type)
-      
-      eps_SUN_sample = lapply(seq(1, Time), function(t) lapply(seq(1, length(data$Y[[t]])), function(i) rSUN(eps_history[[t]][[i]], 1000)))
-      
-      eps_second_moment = lapply(seq(1, Time),
-                                 function(t) lapply(seq(1, length(data$Y[[t]])),
-                                                    function(i) cov(t(eps_SUN_sample[[t]][[i]])) + (t(t(apply(eps_SUN_sample[[t]][[i]], 1, mean))) %*% t(apply(eps_SUN_sample[[t]][[i]], 1, mean)))))
-      
-      new_Sigma = Reduce("+", lapply(seq(1, Time), function(t) Reduce("+", eps_second_moment[[t]])))/sum_m_t
-      
-      parameters_current$Sigma = (new_Sigma + t(new_Sigma))/2
-    }
-    
     trace_Sigma = sum(diag(parameters_current$Sigma))
-    parameters_current$G = parameters_current$G/trace_Sigma
-    parameters_current$W = parameters_current$W/trace_Sigma
-    parameters_current$Sigma = parameters_current$Sigma/trace_Sigma
+    parameters_current$P_0   = normalization*parameters_current$P_0/trace_Sigma
+    parameters_current$W     = normalization*parameters_current$W/trace_Sigma
+    parameters_current$Sigma = normalization*parameters_current$Sigma/trace_Sigma
+    
+    if(log[[1]])
+    {
+      log_likelihood_history_subset = log_likelihood_history[1:iteration]
+      P_0_history_subset   = P_0_history[1:iteration, , ]
+      G_history_subset     = G_history[1:iteration, , ]
+      W_history_subset     = W_history[1:iteration, , ]
+      Sigma_history_subset = Sigma_history[1:iteration, , ]
+      
+      EM_subset_output = list( log_likelihood_history = log_likelihood_history_subset, 
+                               P_0_history = P_0_history_subset,
+                               G_history = G_history_subset, 
+                               W_history = W_history_subset,
+                               Sigma_history = Sigma_history_subset)
+      
+      save(EM_subset_output, file = paste(paste(log[[2]][1], sep = "", log[[2]][2]), sep = "", "_subset_EM.Rdata"))
+      
+    }
     
   }
   
@@ -286,6 +328,7 @@ multinomial_probit_EM_trace <- function(data, filter, initial_parameters, EM_ite
   }
   
   return(list(log_likelihood_history = log_likelihood_history, 
+              P_0_history = P_0_history,
               G_history = G_history, 
               W_history = W_history,
               Sigma_history = Sigma_history))

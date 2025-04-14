@@ -186,7 +186,7 @@ EP_sampling_filter <- function(data, parameters, EP_max_iterations = 5, MC_sampl
     
     y_t = data$Y[[t]]
     x_t = data$X[[t]]
-    EP_correction_output = EP_sampling_correction(x_t, y_t, a_t_tm1, P_t_tm1, parameters, EP_iterations, MC_samples, tol)
+    EP_correction_output = EP_sampling_correction(x_t, y_t, a_t_tm1, P_t_tm1, parameters, EP_max_iterations, MC_samples, tol)
     
     a_history[t+1,]  = EP_correction_output$a_t
     P_history[t+1,,] = EP_correction_output$P_t 

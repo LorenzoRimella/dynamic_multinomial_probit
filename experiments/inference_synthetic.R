@@ -27,7 +27,9 @@ library(tidyr)
 L = 3 # number of choices
 Time= 20 # number of time steps
 
-p = 5 # number of subject dependent covariate
+p_X = 2 # number of subject dependent covariates
+p_Y = 1 # number of choice dependent covariates
+p = p_X*L + p_Y
 
 expected_m_t = 20
 
@@ -76,6 +78,7 @@ ggplot(df, aes(x, y, fill = z)) +
 W = 0.05*diag(beta_size)
 
 Sigma = 0.2*diag(L)
+Sigma[1,1] = 0.5
 for(i in 2:L)
 {
   sign = sample(c(-1, 1), 1)
@@ -85,13 +88,14 @@ for(i in 2:L)
 
 # GENERATE DATA
 # Trace=1
-parameters = list(a_0 = a_0, P_0 = P_0/sum(diag(Sigma)), G = G, W = W/sum(diag(Sigma)), Sigma = Sigma/sum(diag(Sigma)))
+parameters = list(a_0 = a_0, P_0 = L*P_0/sum(diag(Sigma)), G = G, W = L*W/sum(diag(Sigma)), Sigma = L*Sigma/sum(diag(Sigma)))
 
-hyperparameters = list(lambda_M = expected_m_t, N_max = 4*expected_m_t, prediction_bool= FALSE)
+hyperparameters = list(lambda_M = expected_m_t, N_max = 4*expected_m_t, Y_max = 20, prediction_bool= FALSE)
 
-X_cov = matrix(runif(hyperparameters$N_max*p, -0.5, 0.5), nrow = hyperparameters$N_max, ncol = p)
+X_cov = matrix(runif(hyperparameters$N_max*p_X, -0.5, 0.5), nrow = hyperparameters$N_max, ncol = p_X)
+Y_cov = matrix(runif(hyperparameters$Y_max*p_Y, -0.5, 0.5), nrow = hyperparameters$Y_max, ncol = p_Y)
 
-data_multinomial_probit = simulator(X_cov, parameters, hyperparameters, Time)
+data_multinomial_probit = simulator(X_cov, Y_cov, parameters, hyperparameters, Time)
 
 # PLOT DATA
 # Convert Beta matrix to long format
@@ -170,13 +174,21 @@ if(learn_Sigma & learn_G & learn_W)
                             Sigma = diag(L))
 }
 
-EM_output_ADF = multinomial_probit_EM(data_multinomial_probit, EP_sampling_filter, initial_parameters,
+EM_output_ADF = multinomial_probit_EM(data_multinomial_probit, ADF_sampling_filter, initial_parameters,
                                   EM_iterations,
-                                  learn_G, learn_W, learn_Sigma, type = "EP")
+                                  learn_G, learn_W, learn_Sigma, type = "std")
 
-# EM_output_ADF = multinomial_probit_EM_trace(data_multinomial_probit, ADF_sampling_filter, initial_parameters, 
+# sub_iter = dim(EM_subset_output$P_0_history)[1]
+# initial_parameters = list(a_0 = a_0, P_0 = EM_subset_output$P_0_history[sub_iter,,], 
+#                      G = EM_subset_output$G_history[sub_iter,,], 
+#                      W = EM_subset_output$W_history[sub_iter,,], 
+#                      Sigma = EM_subset_output$Sigma_history[sub_iter,,])
+# 
+# EM_output_ADF = multinomial_probit_EM_trace(data_multinomial_probit, ADF_sampling_filter, initial_parameters,
 #                                             EM_iterations,
-#                                             learn_G, learn_W, learn_Sigma, type = "ADF")
+#                                             learn_G, learn_W, learn_Sigma, type = "std", 
+#                                             normalization = 1,
+#                                             log = list(TRUE, c(directory_name, name_simulation)))
 
 save(data_multinomial_probit, file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_data_multinomial_probit.Rdata"))
 save(ADF_filter_output_truth, file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_ADF_truth.Rdata"))

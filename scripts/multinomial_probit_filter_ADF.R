@@ -2,6 +2,8 @@ library(mvtnorm)
 library(TruncatedNormal)
 library(magic)
 
+library(matrixcalc)
+
 library(MomTrunc)
 library(tlrmvnmvt)
 
@@ -18,6 +20,11 @@ one_hot <- function(position, dimension)
 
 Phi<- function(mu, Sigma)
 {
+  Sigma = (Sigma+t(Sigma))/2
+
+  # diag(1e-8, dim(Sigma)[1])
+  # is.positive.definite(Sigma+diag(1e-4, dim(Sigma)[1]), tol=1e-4)
+  
   return(tlrmvnmvt::pmvn(upper = mu[,1], sigma = Sigma)[1])
 }
 
@@ -238,7 +245,7 @@ ADF_sampling_filter <- function(data, parameters, MC_samples = 1000)
   
   for(t in 1:Time)
   {
-    #print(t)
+    # print(t)
     ADF_prediction_parameters = ADF_prediction(a_history[t,], P_history[t,,], parameters)
     a_t_tm1 = ADF_prediction_parameters$a_t_tm1
     P_t_tm1 = ADF_prediction_parameters$P_t_tm1

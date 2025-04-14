@@ -1,0 +1,10 @@
+ERRORI:
+
+- Error in h(simpleError(msg, call)) : 
+  error in evaluating the argument 'x' in selecting a method for function 't': Covariance matrix "sigma" is not positive definite.
+  
+  Se rilanciamo funziona quindi puo essere solo monte carlo error
+  
+- Error: Cholesky failed. Please check the positive definiteness of the input covariance matrix
+
+  Se cambiamo la normalizzazione (=1 o =L) lo risolviamo, pero sembra esplorare nuove zone

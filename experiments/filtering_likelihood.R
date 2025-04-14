@@ -28,7 +28,9 @@ library(tidyr)
 L = 3 # number of choices
 Time= 10 # number of time steps
 
-p = 5 # number of subject dependent covariate
+p_X = 2 # number of subject dependent covariates
+p_Y = 3 # number of choice dependent covariates
+p = p_X*L + p_Y
 
 expected_m_t = 5
 
@@ -86,13 +88,14 @@ for(i in 2:L)
 
 # GENERATE DATA
 
-parameters = list(a_0 = a_0, P_0 = P_0, G = G, W = W, Sigma = Sigma)
+parameters = list(a_0 = a_0, P_0 = L*P_0/sum(diag(Sigma)), G = G, W = L*W/sum(diag(Sigma)), Sigma = L*Sigma/sum(diag(Sigma)))
 
-hyperparameters = list(lambda_M = expected_m_t, N_max = 4*expected_m_t, prediction_bool= FALSE)
+hyperparameters = list(lambda_M = expected_m_t, N_max = 4*expected_m_t, Y_max = 20, prediction_bool= FALSE)
 
-X_cov = matrix(runif(hyperparameters$N_max*p, -0.5, 0.5), nrow = hyperparameters$N_max, ncol = p)
+X_cov = matrix(runif(hyperparameters$N_max*p_X, -0.5, 0.5), nrow = hyperparameters$N_max, ncol = p_X)
+Y_cov = matrix(runif(hyperparameters$Y_max*p_Y, -0.5, 0.5), nrow = hyperparameters$Y_max, ncol = p_Y)
 
-data_multinomial_probit = simulator(X_cov, parameters, hyperparameters, Time)
+data_multinomial_probit = simulator(X_cov, Y_cov, parameters, hyperparameters, Time)
 
 # PLOT DATA
 # Convert Beta matrix to long format
@@ -129,7 +132,7 @@ plot_2 =ggplot(df_beta_long, aes(x = Time, y = Value, color = Type)) +
 grid.arrange(plot_1, plot_2, ncol = 1)
 
 # COMPUTE FILTERS
-EP_iterations = 5
+EP_max_iterations = 5
 tol= 10e-4
 MC_samples = 1000
 

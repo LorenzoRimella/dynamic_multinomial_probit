@@ -6,7 +6,7 @@ kernel_parameters <- function(beta, parameters)
   return(list(a_t = parameters$G %*% beta, P_t = parameters$W))
 }
 
-simulator <- function(X_cov, parameters, hyperparameters = list(lambda_M = 20, N_max = 40, prediction_bool = FALSE), Time)
+simulator <- function(X_cov, Y_cov, parameters, hyperparameters = list(lambda_M = 20, N_max = 40, prediction_bool = FALSE), Time)
 {
   L = dim(parameters$Sigma)[1]
   M_t = rpois(Time, hyperparameters$lambda_M) # number of customers per time steps
@@ -15,6 +15,7 @@ simulator <- function(X_cov, parameters, hyperparameters = list(lambda_M = 20, N
   M_t = apply(rbind(M_t, rep(hyperparameters$N_max, T)), 2, min) #  ensure it is lower than the total nr of customers
   
   customers_index_set = lapply( M_t , function(x){ sample(seq(1, hyperparameters$N_max, by = 1), x) }) # customer per time step
+  property_index_set  = lapply( M_t , function(m_t) sapply(seq(1, m_t), function(x) sample(seq(1, hyperparameters$Y_max, by = 1), L)))
   
   Beta = matrix(NA, ncol = dim(parameters$a_0)[1], nrow =  Time+1)
   X    = list()
@@ -28,15 +29,19 @@ simulator <- function(X_cov, parameters, hyperparameters = list(lambda_M = 20, N
     
     Beta[t+1,] = mvrnorm(n = 1, kernel_param_list$a_t, kernel_param_list$P_t)
     
-    X_1_t = X_cov[customers_index_set[[t]],] # customers covariate at time t
-    X_2_t_choices = diag(rep(1, L)) # choices covariate at time t 
+    custumers_cov  = X_cov[customers_index_set[[t]],]
+    properties_cov = lapply(seq(1, M_t[[t]]), function(i) Y_cov[property_index_set[[t]][,i],])
+
+    X_list = lapply(seq(1, M_t[[t]]), function(i) t(cbind(t(abind(lapply(seq(1, L), 
+                                                                   function(l) t(one_hot(l,L))[1,] %x% custumers_cov[i,]), along = 2)), 
+                                                           properties_cov[[i]], 
+                                                           diag(L))))
+    X_list = lapply(seq(1, M_t[[t]]), function(i) array(X_list[[i]], dim = c(1,dim(X_list[[i]]))))
     
-    X_choices = lapply(seq(1, dim(X_2_t_choices)[1]), function(i) cbind(X_1_t, t(t(rep(1, dim(X_1_t)[1]))) %*% X_2_t_choices[i,]))
+    X[[t]] = abind(X_list, along = 1)
     
-    X[[t]] = abind(X_choices, along = 3)
-    
-    Xbeta = lapply(seq(1, dim(X_2_t_choices)[1]), function(i) X_choices[[i]] %*% t(t(Beta[t+1,])))
-    fixed_utilities = do.call(cbind, Xbeta)
+    Xbeta = lapply(seq(1, M_t[[t]]), function(i) t(X[[t]][i,,]) %*% t(t(Beta[t+1,])))
+    fixed_utilities = t(do.call(cbind, Xbeta))
     
     epsilon = mvrnorm(n = dim(fixed_utilities)[1], rep(0, dim(fixed_utilities)[2]), parameters$Sigma)
     utilities = fixed_utilities + epsilon
