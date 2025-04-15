@@ -1,3 +1,9 @@
+## r libraries ##
+library(purrr)
+library(furrr)
+library(dplyr)
+library(tidyr)
+
 SMC_sampling_filter <- function(data, parameters, MC_samples = 1000)
 {
   plan(multisession)
@@ -34,7 +40,10 @@ SMC_sampling_filter <- function(data, parameters, MC_samples = 1000)
                                        V_minus_l(y_t[i], L) %*% parameters$Sigma %*% t(V_minus_l(y_t[i], L)))))
     }
     
+    #start_time <- Sys.time()
     weights = future_sapply(seq(1, MC_samples), function(s) prod_likelihood(s), future.seed = TRUE)
+    #print(as.numeric(Sys.time() - start_time))
+    
     weights_norm = weights/sum(weights)
     
     log_likelihood = log_likelihood + log(mean(weights))

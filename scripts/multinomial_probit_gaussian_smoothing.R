@@ -119,9 +119,9 @@ Gaussian_smoother <- function(data, parameters, Gaussian_filter)
               running_time = as.numeric(Sys.time() - start_time, units = "secs")))
 }
 
-epsilon_smoother <- function(data, parameters, filter_output, smoother_output, type = "ADF")
+epsilon_smoother <- function(data, parameters, filter_output, smoother_output, type = "std")
 {
-  if(type=="ADF"){
+  if(type=="std"){
     
     return(ADF_epsilon_smoother(data, parameters, filter_output, smoother_output))
     
@@ -152,8 +152,8 @@ EP_epsilon_smoother <- function(data, parameters, EP_filter_output, EP_smoother_
     Q_t_T = solve(EP_smoother_output$P_history[t+1,,])
     r_t_T = Q_t_T %*% EP_smoother_output$a_history[t+1,]
 
-    Q_t_minus_i_T = lapply(seq(1, m_t), function(i) Q_t_T - EP_filter_output$Q[[t]][i+1,,])
-    r_t_minus_i_T = lapply(seq(1, m_t), function(i) r_t_T - t(t(EP_filter_output$r[[t]][i+1,])))
+    Q_t_minus_i_T = lapply(seq(1, m_t), function(i) Q_t_T - EP_filter_output$Q_history[[t]][i+1,,])
+    r_t_minus_i_T = lapply(seq(1, m_t), function(i) r_t_T - t(t(EP_filter_output$r_history[[t]][i+1,])))
 
     P_t_minus_i_T = lapply(seq(1, m_t), function(i) solve(Q_t_minus_i_T[[i]]))
     a_t_minus_i_T = lapply(seq(1, m_t), function(i) P_t_minus_i_T[[i]] %*% r_t_minus_i_T[[i]])
