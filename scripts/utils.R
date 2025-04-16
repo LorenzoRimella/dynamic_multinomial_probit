@@ -1,3 +1,9 @@
+library(Matrix)
+
+is_positive_definite <- function(matrix) {
+  is.positive.definite(matrix, tol=1e-8)
+}
+
 sim_name <- function(name_init="filt_smoot_lik_p_", L, Time, p, expected_m_t)
 {
   string = paste(name_init, p, sep = "")
