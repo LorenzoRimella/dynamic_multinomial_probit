@@ -26,13 +26,13 @@ library(tidyr)
 
 # SET UP THE SIMULATION
 L = 3 # number of choices
-Time= 10 # number of time steps
+Time= 50 # number of time steps
 
 p_X = 2 # number of subject dependent covariates
 p_Y = 3 # number of choice dependent covariates
 p = p_X*L + p_Y
 
-expected_m_t = 5
+expected_m_t = 50
 
 name_init="filt_smoot_lik_p_"
 
@@ -140,7 +140,7 @@ sliding_window = 10
 
 # SAME DATA but different replicates
 
-n_replicates = 5
+n_replicates = 1
 data_list <- list()
 i = 0
 
@@ -233,12 +233,12 @@ save(EP_filter_sampler_output, file    = paste(paste(directory_name, sep = "", n
 save(ADF_filter_sampler_output, file   = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_ADF_filter.Rdata"))
 save(exact_filter_sampler_output, file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_exact_filter.Rdata"))
 
-color_list <- c("blue", "black", "red", "green", "brown")
+color_list <- c("blue", "black", "red", "magenta", "brown")
 
 # PLOT FILTERING
 # Create a data frame for plotting
 data_list <- list()
-for (j in 1:4) {
+for (j in c(1,3,5,7,10)) {
   i =1
   
   df_filter <- data.frame(
@@ -268,10 +268,22 @@ for (j in 1:4) {
   df_filter <- data.frame(
     x = seq(0, Time, length.out = Time+1),
     y1 = data_multinomial_probit$Beta[, 1*(j-1) + i],
+    y2 = SMC_filter_sampler_output$a_history[, 1*(j-1) + i],
+    y_upper = SMC_filter_sampler_output$a_history[, 1*(j-1) + i] + 1.96 * sqrt(SMC_filter_sampler_output$P_history[, 1*(j-1) + i, 1*(j-1) + i]),
+    y_lower = SMC_filter_sampler_output$a_history[, 1*(j-1) + i] - 1.96 * sqrt(SMC_filter_sampler_output$P_history[, 1*(j-1) + i, 1*(j-1) + i]),
+    color = color_list[i+2],
+    facet_row = j,
+    facet_col = "SMC"
+  )
+  data_list[[length(data_list) + 1]] <- df_filter
+  
+  df_filter <- data.frame(
+    x = seq(0, Time, length.out = Time+1),
+    y1 = data_multinomial_probit$Beta[, 1*(j-1) + i],
     y2 = exact_filter_sampler_output$a_history[, 1*(j-1) + i],
     y_upper = exact_filter_sampler_output$a_history[, 1*(j-1) + i] + 1.96 * sqrt(exact_filter_sampler_output$P_history[, 1*(j-1) + i, 1*(j-1) + i]),
     y_lower = exact_filter_sampler_output$a_history[, 1*(j-1) + i] - 1.96 * sqrt(exact_filter_sampler_output$P_history[, 1*(j-1) + i, 1*(j-1) + i]),
-    color = color_list[i+1],
+    color = color_list[i+3],
     facet_row = j,
     facet_col = "Exact"
   )
@@ -296,7 +308,7 @@ ggplot(plot_data, aes(x = x)) +
 # PLOT SMOOTHING
 # Create a data frame for plotting
 data_list <- list()
-for (j in 1:4) {
+for (j in c(1,3,5,7,10)) {
   i =1
   
   df_filter <- data.frame(
