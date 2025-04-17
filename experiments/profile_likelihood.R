@@ -3,6 +3,9 @@ rm(list=ls())
 library(rstudioapi)
 setwd(dirname(rstudioapi::getSourceEditorContext()$path))
 
+# check the values of P_0 etc. to make sure that there are not deterministic cases
+# repeat the EM algorithm and report the covergence traceplots 
+
 source("../scripts/utils.R")
 source("../scripts/model.R")
 source("../scripts/multinomial_probit_filter_EP.R")
@@ -32,7 +35,7 @@ p_X = 2 # number of subject dependent covariates
 p_Y = 3 # number of choice dependent covariates
 p = p_X*L + p_Y
 
-expected_m_t = 5
+expected_m_t = 15
 
 name_init="filt_smoot_lik_p_"
 
@@ -45,14 +48,16 @@ if (!dir.exists(directory_name)) {
   dir.create(directory_name)
 }
 
-set.seed(12345)
+set.seed(678)
 
 # GENERATE PARAMETERS
 
 beta_size = p + L
 
 a_0 = matrix(rep(0, beta_size), ncol = 1)
-P_0 = diag(beta_size)
+P_0 = 0.1*diag(beta_size)
+
+W = 0.05*diag(beta_size)
 
 G = 0.5*diag(beta_size)
 for(i in 2:beta_size)
@@ -62,29 +67,7 @@ for(i in 2:beta_size)
   G[i-1,i] = sign*0.25
 }
 
-# Plot the asymptotic G
-G_cumul = G
-for(t in 1:Time){G_cumul = G%*%G_cumul}
-
-df <- expand.grid(x = 1:nrow(G_cumul), y = 1:ncol(G_cumul))
-df$z <- as.vector(G_cumul)  # Assign values from the matrix
-
-ggplot(df, aes(x, y, fill = z)) +
-  geom_raster() +
-  scale_fill_viridis_c() + 
-  scale_y_reverse() +
-  coord_fixed() +
-  theme_minimal()
-
-W = 0.05*diag(beta_size)
-
 Sigma = 0.2*diag(L)
-for(i in 2:L)
-{
-  sign = sample(c(-1, 1), 1)
-  Sigma[i,i-1] = sign*0.1
-  Sigma[i-1,i] = sign*0.1
-}
 
 # GENERATE DATA
 
@@ -96,6 +79,31 @@ X_cov = matrix(runif(hyperparameters$N_max*p_X, -0.5, 0.5), nrow = hyperparamete
 Y_cov = matrix(runif(hyperparameters$Y_max*p_Y, -0.5, 0.5), nrow = hyperparameters$Y_max, ncol = p_Y)
 
 data_multinomial_probit = simulator(X_cov, Y_cov, parameters, hyperparameters, Time)
+
+# Check mean variance of the fixed effect
+Sigma_cumul = parameters$P_0
+sum_var     = array(0, dim= c(L,L))
+elem = 0 
+for(t in 1:Time)
+{
+  Sigma_cumul = parameters$G%*%Sigma_cumul%*%t(parameters$G) + parameters$W
+  
+  elem = elem + dim(data_multinomial_probit$X[[t]])[1]
+  
+  list_variances = lapply(seq(1, dim(data_multinomial_probit$X[[t]])[1]), function(i) t(data_multinomial_probit$X[[t]][i,,])%*%Sigma_cumul%*%data_multinomial_probit$X[[t]][i,,])
+
+  sum_var = sum_var + Reduce("+", list_variances)
+}
+
+df <- expand.grid(x = 1:nrow(sum_var/elem), y = 1:ncol(sum_var/elem))
+df$z <- as.vector(sum_var/elem)  # Assign values from the matrix
+
+ggplot(df, aes(x, y, fill = z)) +
+  geom_raster() +
+  scale_fill_viridis_c() + 
+  scale_y_reverse() +
+  coord_fixed() +
+  theme_minimal()
 
 # PLOT DATA
 # Convert Beta matrix to long format
@@ -150,16 +158,18 @@ Sigma_comp <- function(a,b)
 
 Sigma_comp("a", "b")
 
-a_grid = seq(-1, 1, length = 100) 
-b_grid = seq(-1, 1, length = 100) 
+grid_size = 20
+
+a_grid = seq(-1, 1, length = grid_size) 
+b_grid = seq(-1, 1, length = grid_size) 
 
 parameters_temp = parameters
 
-log_likelihood_surface = matrix(NA, nrow=100, ncol=100)
+log_likelihood_surface = matrix(NA, nrow=grid_size, ncol=grid_size)
 
-for(i in 1:100)
+for(i in 1:grid_size)
 {
-  for(j in 1:100)
+  for(j in 1:grid_size)
   {
     
     parameters_temp$Sigma = Sigma_comp(a_grid[i], b_grid[j])
