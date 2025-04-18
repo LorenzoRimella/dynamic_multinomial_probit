@@ -39,7 +39,7 @@ p = p_X*L + p_Y
 
 expected_m_t = 15
 
-name_init="filt_smoot_lik_p_"
+name_init="repeat_EM_p_"
 
 output_name = sim_name(name_init, L, Time, p, expected_m_t)
 name_simulation = output_name$name
@@ -115,12 +115,12 @@ ggplot(df, aes(x, y, fill = z)) +
   theme_minimal()
 
 # EM algorithm
-EM_iterations = 10
+EM_iterations = 100
 learn_G = FALSE
 learn_W = FALSE
 learn_Sigma = TRUE
 
-n_samples = 5
+n_samples = 50
 
 Sigma_repeated_sample  = array(NA, dim = c(n_samples, L, L))
 log_likelihood_history = array(NA, dim = c(n_samples, EM_iterations+1))
@@ -128,6 +128,7 @@ log_likelihood_true    = array(NA, dim = c(n_samples))
 
 for(i in 1:n_samples)
 {
+  print(i)
   initial_parameters = list(a_0 = parameters$a_0, P_0 = parameters$P_0, 
                             G = parameters$G, 
                             W = parameters$W, 
@@ -142,16 +143,63 @@ for(i in 1:n_samples)
   
   EP_filter_output_truth   = EP_sampling_filter(data_multinomial_probit_next, parameters)
   
-  trace_Sigma = sum(diag(EM_output_EP$Sigma_history[EM_iterations+1,,]))
-  Sigma_repeated_sample[i,,] = L*EM_output_EP$Sigma_history[EM_iterations+1,,]/trace_Sigma
+  # trace_Sigma = sum(diag(EM_output_EP$Sigma_history[EM_iterations+1,,]))
+  # Sigma_repeated_sample[i,,] = L*EM_output_EP$Sigma_history[EM_iterations+1,,]/trace_Sigma
+  Sigma_repeated_sample[i,,] = EM_output_EP$Sigma_history[EM_iterations+1,,]
   log_likelihood_history[i,] = EM_output_EP$log_likelihood_history
   log_likelihood_true[i] = EP_filter_output_truth$log_likelihood 
   
 }
 
+save(Sigma_repeated_sample,  file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_Sigma_repeated_sample.Rdata"))
+save(log_likelihood_history, file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_log_likelihood_history.Rdata"))
+save(log_likelihood_true,    file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_log_likelihood_true.Rdata"))
 
+df <- as.data.frame(log_likelihood_history - t(t(log_likelihood_true))%*%array(1, dim = c(1, EM_iterations+1)))
+df$id <- factor(1:n_samples)  # Add an ID for each row
 
+# Optional: give time-based column names
+colnames(df)[1:(EM_iterations+1)] <- paste0("t", 1:(EM_iterations+1))
 
+df_long <- pivot_longer(df, 
+                        cols = starts_with("t"), 
+                        names_to = "time", 
+                        values_to = "value")
+
+# Convert 'time' to numeric (optional, for ordering)
+df_long$time <- as.numeric(sub("t", "", df_long$time))
+
+ggplot(df_long, aes(x = time, y = value, group = id, color = id)) +
+  geom_line() +
+  labs(x = "Time", y = "Value", title = "N Trajectories Over T Time Points") +
+  theme_minimal()
+
+matrix_normalization <- function(Sigma)
+{
+  trace_Sigma = sum(diag(Sigma))
+  
+  return(L*Sigma/trace_Sigma)
+}
+
+mean_Sigma = Reduce("+", lapply(seq(1, n_samples), function(i) matrix_normalization(Sigma_repeated_sample[i,,])))/n_samples
+sd_Sigma   = sqrt(Reduce("+", lapply(seq(1, n_samples), function(i) (matrix_normalization(Sigma_repeated_sample[i,,]) - mean_Sigma)^2))/n_samples)
+
+parameters$Sigma
+
+# Get row and column indices for each element
+positions <- expand.grid(row = 1:L, col = 1:L)
+
+# Flatten the matrices
+vec1 <- as.vector(mean_Sigma)
+vec2 <- as.vector(sd_Sigma)
+vec3 <- as.vector(parameters$Sigma)
+
+# Create the formatted table
+result <- data.frame(
+  element = paste(positions$row, positions$col, sep = ","),
+  EM_mean_sd = paste(round(vec1,2), "+/-", round(vec2,2)),
+  Sigma_value = round(vec3,2)
+)
 
 
 
