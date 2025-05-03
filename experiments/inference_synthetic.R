@@ -25,7 +25,7 @@ library(tidyr)
 
 # SET UP THE SIMULATION
 L = 3 # number of choices
-Time= 20 # number of time steps
+Time= 5 # number of time steps
 
 p_X = 2 # number of subject dependent covariates
 p_Y = 1 # number of choice dependent covariates
@@ -44,7 +44,7 @@ if (!dir.exists(directory_name)) {
   dir.create(directory_name)
 }
 
-set.seed(123)
+set.seed(345)
 
 # GENERATE PARAMETERS
 
@@ -61,20 +61,6 @@ for(i in 2:beta_size)
   G[i-1,i] = sign*0.25
 }
 
-# Plot the asymptotic G
-G_cumul = G
-for(t in 1:Time){G_cumul = G%*%G_cumul}
-
-df <- expand.grid(x = 1:nrow(G_cumul), y = 1:ncol(G_cumul))
-df$z <- as.vector(G_cumul)  # Assign values from the matrix
-
-ggplot(df, aes(x, y, fill = z)) +
-  geom_raster() +
-  scale_fill_viridis_c() + 
-  scale_y_reverse() +
-  coord_fixed() +
-  theme_minimal()
-
 W = 0.05*diag(beta_size)
 
 Sigma = 0.2*diag(L)
@@ -86,9 +72,10 @@ for(i in 2:L)
   Sigma[i-1,i] = sign*0.1
 }
 
+parameters = list(a_0 = a_0, P_0 = L*P_0/sum(diag(Sigma)), G = G, W = L*W/sum(diag(Sigma)), Sigma = L*Sigma/sum(diag(Sigma)))
+
 # GENERATE DATA
 # Trace=1
-parameters = list(a_0 = a_0, P_0 = L*P_0/sum(diag(Sigma)), G = G, W = L*W/sum(diag(Sigma)), Sigma = L*Sigma/sum(diag(Sigma)))
 
 hyperparameters = list(lambda_M = expected_m_t, N_max = 4*expected_m_t, Y_max = 20, prediction_bool= FALSE)
 
@@ -96,6 +83,31 @@ X_cov = matrix(runif(hyperparameters$N_max*p_X, -0.5, 0.5), nrow = hyperparamete
 Y_cov = matrix(runif(hyperparameters$Y_max*p_Y, -0.5, 0.5), nrow = hyperparameters$Y_max, ncol = p_Y)
 
 data_multinomial_probit = simulator(X_cov, Y_cov, parameters, hyperparameters, Time)
+
+# Check mean variance of the fixed effect
+Sigma_cumul = parameters$P_0
+sum_var     = array(0, dim= c(L,L))
+elem = 0 
+for(t in 1:(Time))
+{
+  Sigma_cumul = parameters$G%*%Sigma_cumul%*%t(parameters$G) + parameters$W
+  
+  elem = elem + dim(data_multinomial_probit$X[[t]])[1]
+  
+  list_variances = lapply(seq(1, dim(data_multinomial_probit$X[[t]])[1]), function(i) t(data_multinomial_probit$X[[t]][i,,])%*%Sigma_cumul%*%data_multinomial_probit$X[[t]][i,,])
+  
+  sum_var = sum_var + Reduce("+", list_variances)
+}
+
+df <- expand.grid(x = 1:nrow(sum_var/elem), y = 1:ncol(sum_var/elem))
+df$z <- as.vector(sum_var/elem)  # Assign values from the matrix
+
+ggplot(df, aes(x, y, fill = z)) +
+  geom_raster() +
+  scale_fill_viridis_c() + 
+  scale_y_reverse() +
+  coord_fixed() +
+  theme_minimal()
 
 # PLOT DATA
 # Convert Beta matrix to long format
@@ -137,38 +149,47 @@ ADF_filter_output_truth   = ADF_sampling_filter(data_multinomial_probit, paramet
 ADF_smoother_output_truth = Gaussian_smoother(data_multinomial_probit, parameters, ADF_filter_output_truth)
 
 # EM algorithm
-EM_iterations = 100
-learn_G = TRUE
-learn_W = TRUE
+EM_iterations = 3000
+learn_G = FALSE
+learn_W = FALSE
 learn_Sigma = TRUE
+
+if((learn_G) & !(learn_W) & !(learn_Sigma))
+{
+  initial_parameters = list(a_0 = parameters$a_0, P_0 = parameters$P_0, 
+                            G = diag(beta_size), 
+                            W = parameters$W, 
+                            Sigma = parameters$Sigma)
+}
+
 
 if((learn_G & learn_W) & !(learn_Sigma))
 {
-  initial_parameters = list(a_0 = a_0, P_0 = P_0, 
+  initial_parameters = list(a_0 = parameters$a_0, P_0 = parameters$P_0, 
                             G = diag(beta_size), 
                             W = diag(dim(parameters$W)[1]), 
-                            Sigma = Sigma)
+                            Sigma = parameters$Sigma)
 }
 
 if(learn_Sigma & !(learn_G) & !(learn_W))
 {
-  initial_parameters = list(a_0 = a_0, P_0 = P_0, 
-                            G = G, 
-                            W = W, 
+  initial_parameters = list(a_0 = parameters$a_0, P_0 = parameters$P_0, 
+                            G = parameters$G, 
+                            W = parameters$W, 
                             Sigma = diag(L))
 }
 
 if(learn_Sigma & learn_G & !(learn_W))
 {
-  initial_parameters = list(a_0 = a_0, P_0 = P_0, 
+  initial_parameters = list(a_0 = parameters$a_0, P_0 = parameters$P_0, 
                             G = diag(beta_size), 
-                            W = W, 
+                            W = parameters$W, 
                             Sigma = diag(L))
 }
 
 if(learn_Sigma & learn_G & learn_W)
 {
-  initial_parameters = list(a_0 = a_0, P_0 = P_0, 
+  initial_parameters = list(a_0 = parameters$a_0, P_0 = parameters$P_0, 
                             G = diag(beta_size), 
                             W = diag(dim(parameters$W)[1]), 
                             Sigma = diag(L))
@@ -177,6 +198,26 @@ if(learn_Sigma & learn_G & learn_W)
 EM_output_ADF = multinomial_probit_EM(data_multinomial_probit, ADF_sampling_filter, initial_parameters,
                                   EM_iterations,
                                   learn_G, learn_W, learn_Sigma, type = "std")
+
+par(mfrow = c(3, 3), mar = c(2, 2, 2, 1), oma = c(0, 0, 2, 0))  # optional: adjust margins
+
+# Plot each matrix element
+for (i in 1:3) {
+  for (j in 1:3) {
+    
+    balanced   = EM_output_ADF$Sigma_history[800:1000,i,j]
+    
+    balanced   = balanced
+  
+    # Define y-limits to fit both
+    ylims <- range(balanced)
+    
+    # Plot
+    plot(balanced, type = "l", col = "red", lwd = 2,
+         ylim = ylims, main = paste0("(", i, ",", j, ")"),
+         xlab = "", ylab = "")
+  }
+}
 
 # sub_iter = dim(EM_subset_output$P_0_history)[1]
 # initial_parameters = list(a_0 = a_0, P_0 = EM_subset_output$P_0_history[sub_iter,,], 

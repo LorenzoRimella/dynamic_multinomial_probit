@@ -127,17 +127,42 @@ ggplot(df_y, aes(x = Time, y = Count, fill = Category)) +
 beta_size = p + L
 
 a_0 = matrix(rep(0, beta_size), ncol = 1)
-P_0 = diag(beta_size)
+P_0 = 1/beta_size*diag(beta_size)
 
-G = diag(beta_size)
-W = diag(beta_size)
+G = 0.1*diag(beta_size)
+W = 0.1*diag(beta_size)
 Sigma = diag(L)
 
 initial_parameters = list(a_0 = a_0,
-                          P_0 = P_0,
+                          P_0 = L*P_0/sum(diag(Sigma)),
                           G = G,
-                          W = W,
-                          Sigma = Sigma)
+                          W = L*W/sum(diag(Sigma)),
+                          Sigma = L*Sigma/sum(diag(Sigma)))
+
+# Check mean variance of the fixed effect
+Sigma_cumul = initial_parameters$P_0
+sum_var     = array(0, dim= c(L,L))
+elem = 0 
+for(t in 1:Time)
+{
+  Sigma_cumul = initial_parameters$G%*%Sigma_cumul%*%t(initial_parameters$G) + initial_parameters$W
+  
+  elem = elem + dim(data_multinomial_probit$X[[t]])[1]
+  
+  list_variances = lapply(seq(1, dim(data_multinomial_probit$X[[t]])[1]), function(i) t(data_multinomial_probit$X[[t]][i,,])%*%Sigma_cumul%*%data_multinomial_probit$X[[t]][i,,])
+  
+  sum_var = sum_var + Reduce("+", list_variances)
+}
+
+df <- expand.grid(x = 1:nrow(sum_var/elem), y = 1:ncol(sum_var/elem))
+df$z <- as.vector(sum_var/elem)  # Assign values from the matrix
+
+ggplot(df, aes(x, y, fill = z)) +
+  geom_raster() +
+  scale_fill_viridis_c() + 
+  scale_y_reverse() +
+  coord_fixed() +
+  theme_minimal()
 
 # Filter
 EP_max_iterations = 5
@@ -152,48 +177,17 @@ EP_sampling_filter_to_use <- function(data, parameters)
 # EM algorithm
 EM_iterations = 100
 learn_G = TRUE
-learn_W = TRUE
+learn_W = FALSE
 learn_Sigma = TRUE
-
-if((learn_G & learn_W) & !(learn_Sigma))
-{
-  initial_parameters = list(a_0 = a_0, P_0 = P_0, 
-                            G = diag(beta_size), 
-                            W = diag(dim(initial_parameters$W)[1]), 
-                            Sigma = Sigma)
-}
-
-if(learn_Sigma & !(learn_G) & !(learn_W))
-{
-  initial_parameters = list(a_0 = a_0, P_0 = P_0, 
-                            G = G, 
-                            W = W, 
-                            Sigma = diag(L))
-}
-
-if(learn_Sigma & learn_G & !(learn_W))
-{
-  initial_parameters = list(a_0 = a_0, P_0 = P_0, 
-                            G = diag(beta_size), 
-                            W = W, 
-                            Sigma = diag(L))
-}
-
-if(learn_Sigma & learn_G & learn_W)
-{
-  initial_parameters = list(a_0 = a_0, P_0 = P_0, 
-                            G = diag(beta_size), 
-                            W = diag(dim(initial_parameters$W)[1]), 
-                            Sigma = diag(L))
-}
 
 EM_output_EP = multinomial_probit_EM(data_multinomial_probit, EP_sampling_filter_to_use, initial_parameters,
                                      EM_iterations,
-                                     learn_G, learn_W, learn_Sigma, type = "std")
+                                     learn_G, learn_W, learn_Sigma, type = "nonstd",
+                                     log = list(TRUE, c(directory_name, name_simulation)))
 
-save(data_multinomial_probit, file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_data_multinomial_probit.Rdata"))
-save(ADF_filter_output_truth, file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_ADF_truth.Rdata"))
-save(EM_output_ADF,           file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_ADF_EM.Rdata"))
+plot(EM_output_EP$log_likelihood_history)
+
+save(EM_output_EP,           file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_EP_EM.Rdata"))
 
 Trace_EM = sum(diag(EM_output_ADF$Sigma_history[EM_iterations+1,,]))
 EM_parameters = list(a_0 = a_0, P_0 = P_0/Trace_EM, 

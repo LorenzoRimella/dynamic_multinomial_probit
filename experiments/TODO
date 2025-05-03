@@ -8,3 +8,13 @@ ERRORI:
 - Error: Cholesky failed. Please check the positive definiteness of the input covariance matrix
 
   Se cambiamo la normalizzazione (=1 o =L) lo risolviamo, pero sembra esplorare nuove zone
+  
+  
+
+STEPS:
+
+- impara Sigma in scenario bilanciato e sbilanciato con EM_iter= 1000 (G,W fissati)
+
+- expedia con G e W fissati (G=0.5 Identita, W e P_0 per stazionarieta)
+
+- se bene sopra impara G e Sigma

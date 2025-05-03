@@ -163,13 +163,13 @@ colnames(df)[1:(EM_iterations+1)] <- paste0("t", 1:(EM_iterations+1))
 
 df_long <- pivot_longer(df, 
                         cols = starts_with("t"), 
-                        names_to = "time", 
-                        values_to = "value")
+                        names_to = "iteration", 
+                        values_to = "diff")
 
 # Convert 'time' to numeric (optional, for ordering)
-df_long$time <- as.numeric(sub("t", "", df_long$time))
+df_long$iteration <- as.numeric(sub("t", "", df_long$iteration))
 
-ggplot(df_long, aes(x = time, y = value, group = id, color = id)) +
+ggplot(df_long, aes(x = iteration, y = diff, group = id, color = 3)) +
   geom_line() +
   labs(x = "Time", y = "Value", title = "N Trajectories Over T Time Points") +
   theme_minimal()

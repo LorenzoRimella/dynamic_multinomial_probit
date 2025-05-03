@@ -25,7 +25,7 @@ library(tidyr)
 
 # SET UP THE SIMULATION
 L = 3 # number of choices
-Time= 20 # number of time steps
+Time= 5 # number of time steps
 
 p_X = 2 # number of subject dependent covariates
 p_Y = 1 # number of choice dependent covariates
@@ -44,29 +44,64 @@ if (!dir.exists(directory_name)) {
   dir.create(directory_name)
 }
 
-set.seed(123)
+set.seed(15)
 
 # GENERATE PARAMETERS
 
 beta_size = p + L
 
 a_0 = matrix(rep(0, beta_size), ncol = 1)
-P_0 = diag(beta_size)
+P_0 = 0.5*(1/beta_size)*diag(beta_size)
 
-G = 0.5*diag(beta_size)
+G = 0.3*diag(beta_size)
 for(i in 2:beta_size)
 {
   sign = sample(c(-1, 1), 1)
-  G[i,i-1] = sign*0.25
-  G[i-1,i] = sign*0.25
+  G[i,i-1] = sign*0.2
+  G[i-1,i] = sign*0.2
 }
 
-# Plot the asymptotic G
-G_cumul = G
-for(t in 1:Time){G_cumul = G%*%G_cumul}
+W = 0.01*diag(beta_size)
+is_positive_definite(W)
 
-df <- expand.grid(x = 1:nrow(G_cumul), y = 1:ncol(G_cumul))
-df$z <- as.vector(G_cumul)  # Assign values from the matrix
+Sigma = 1.25*diag(L)
+for(i in 2:L)
+{
+  sign = sample(c(-1, 1), 1)
+  Sigma[i,i-1] = sign*0.5
+  Sigma[i-1,i] = sign*0.5
+}
+is_positive_definite(Sigma)
+
+# GENERATE DATA
+# Trace=1
+parameters = list(a_0 = a_0, P_0 = L*P_0/sum(diag(Sigma)), G = G, W = L*W/sum(diag(Sigma)), Sigma = L*Sigma/sum(diag(Sigma)))
+
+hyperparameters = list(lambda_M = expected_m_t, N_max = 4*expected_m_t, Y_max = 20, prediction_bool= FALSE)
+
+X_cov = matrix(runif(hyperparameters$N_max*p_X, -0.5, 0.5), nrow = hyperparameters$N_max, ncol = p_X)
+Y_cov = matrix(runif(hyperparameters$Y_max*p_Y, -0.5, 0.5), nrow = hyperparameters$Y_max, ncol = p_Y)
+
+data_multinomial_probit = simulator(X_cov, Y_cov, parameters, hyperparameters, Time)
+
+
+# Check mean variance of the fixed effect
+Sigma_cumul = parameters$P_0
+sum_var     = array(0, dim= c(L,L))
+elem = 0 
+for(t in 1:Time)
+{
+  Sigma_cumul = parameters$G%*%Sigma_cumul%*%t(parameters$G) + parameters$W
+  
+  elem = elem + dim(data_multinomial_probit$X[[t]])[1]
+  
+  list_variances = lapply(seq(1, dim(data_multinomial_probit$X[[t]])[1]), function(i) t(data_multinomial_probit$X[[t]][i,,])%*%Sigma_cumul%*%data_multinomial_probit$X[[t]][i,,])
+  
+  sum_var = sum_var + Reduce("+", list_variances)
+}
+
+df <- expand.grid(x = 1:nrow(sum_var/elem), y = 1:ncol(sum_var/elem))
+df$z <- as.vector(sum_var/elem)  # Assign values from the matrix
 
 ggplot(df, aes(x, y, fill = z)) +
   geom_raster() +
@@ -75,15 +110,201 @@ ggplot(df, aes(x, y, fill = z)) +
   coord_fixed() +
   theme_minimal()
 
-W = 0.05*diag(beta_size)
+# PLOT DATA
+# Convert Beta matrix to long format
+df_beta      = as.data.frame(data_multinomial_probit$Beta)
+df_beta$Time = seq_len(Time+1)  
 
-Sigma = 0.2*diag(L)
+df_beta_long = df_beta %>%
+  gather(Column, Value, -Time) %>%
+  mutate(Type = "Beta")  
+
+time_steps <- seq_along(data_multinomial_probit$Y)  
+data_list <- lapply(seq_along(data_multinomial_probit$Y), 
+                    function(i) {data.frame(table(data_multinomial_probit$Y[[i]])) %>%
+                        mutate(time = i)})
+
+df_y <- do.call(rbind, data_list)
+names(df_y) <- c("Category", "Count", "Time")  
+df_y$Time <- as.factor(df_y$Time)
+df_y$Category <- factor(df_y$Category, levels = as.character(sort(as.numeric(levels(df_y$Category)))))
+
+plot_1 = ggplot(df_y, aes(x = Time, y = Count, fill = Category)) +
+  geom_bar(stat = "identity", position = "stack") +  
+  scale_x_discrete(breaks = c(1, seq(0, 100, by = 10)[2:11])) +
+  labs(x = "Time", y = "Count", fill = "Category") +
+  theme_minimal() 
+
+plot_2 =ggplot(df_beta_long, aes(x = Time, y = Value, color = Type)) +
+  geom_line(alpha = 0.8) +
+  scale_color_manual(values = c("blue", "red")) +
+  labs(x = "Time", y = "") +
+  scale_x_discrete(breaks = c(1, seq(0, 100, by = 10)[2:11])) +
+  theme_minimal() 
+
+grid.arrange(plot_1, plot_2, ncol = 1)
+
+# True likelihood
+EP_max_iterations = 1000
+MC_samples = 10000
+tol = 10e-3
+
+EP_sampling_filter_to_use <- function(data, parameters)
+{
+  return(EP_sampling_filter(data, parameters, EP_max_iterations, MC_samples, tol))
+}
+
+EP_filter_output_truth   = EP_sampling_filter_to_use(data_multinomial_probit, parameters)
+EP_smoother_output_truth = Gaussian_smoother(data_multinomial_probit, parameters, EP_filter_output_truth)
+
+# EM algorithm
+EM_iterations = 2000
+learn_G = FALSE
+learn_W = FALSE
+learn_Sigma = TRUE
+
+if((learn_G) & !(learn_W) & !(learn_Sigma))
+{
+  initial_parameters = list(a_0 = parameters$a_0, P_0 = parameters$P_0, 
+                            G = diag(beta_size), 
+                            W = parameters$W, 
+                            Sigma = parameters$Sigma)
+}
+
+
+if((learn_G & learn_W) & !(learn_Sigma))
+{
+  initial_parameters = list(a_0 = parameters$a_0, P_0 = parameters$P_0, 
+                            G = diag(beta_size), 
+                            W = diag(dim(parameters$W)[1]), 
+                            Sigma = parameters$Sigma)
+}
+
+if(learn_Sigma & !(learn_G) & !(learn_W))
+{
+  initial_parameters = list(a_0 = parameters$a_0, P_0 = parameters$P_0, 
+                            G = parameters$G, 
+                            W = parameters$W, 
+                            Sigma = diag(L))
+}
+
+if(learn_Sigma & learn_G & !(learn_W))
+{
+  initial_parameters = list(a_0 = parameters$a_0, P_0 = parameters$P_0, 
+                            G = diag(beta_size), 
+                            W = parameters$W, 
+                            Sigma = diag(L))
+}
+
+if(learn_Sigma & learn_G & learn_W)
+{
+  initial_parameters = list(a_0 = parameters$a_0, P_0 = parameters$P_0, 
+                            G = diag(beta_size), 
+                            W = diag(dim(parameters$W)[1]), 
+                            Sigma = diag(L))
+}
+
+EM_output_EP = multinomial_probit_EM(data_multinomial_probit, EP_sampling_filter_to_use, initial_parameters,
+                                  EM_iterations,
+                                  learn_G, learn_W, learn_Sigma, 
+                                  type = "nonstd",
+                                  log = list(TRUE, c(directory_name, name_simulation)))
+
+save(data_multinomial_probit, file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_nonstd_balanced_data_multinomial_probit.Rdata"))
+save(EP_filter_output_truth, file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_nonstd_balanced_EP_truth.Rdata"))
+save(EM_output_EP,           file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_nonstd_balanced_EP_EM.Rdata"))
+
+Trace_EM = sum(diag(EM_output_EP$Sigma_history[EM_iterations+1,,]))
+EM_parameters = list(a_0 = parameters$a_0, P_0 = parameters$P_0/Trace_EM, 
+                     G = parameters$G, 
+                     W = parameters$W/Trace_EM, 
+                     Sigma = EM_output_EP$Sigma_history[EM_iterations+1,,]/Trace_EM)
+
+EP_filter_output_EM   = EP_sampling_filter_to_use(data_multinomial_probit, EM_parameters)
+EP_smoother_output_EM = Gaussian_smoother(data_multinomial_probit, EM_parameters, EP_filter_output_EM)
+
+# PLOT LOG-LIKELIHOOD
+# Create a data frame for the line plot
+df <- data.frame(
+  iterations = 1:(EM_iterations+1),
+  log_likelihood = EM_output_EP$log_likelihood_history
+)
+
+# Create the plot
+ggplot() +
+  geom_line(data = df, aes(x = iterations, y = log_likelihood, color = "EM Log-Likelihood"), size = 1) + # Line plot
+  geom_hline(aes(yintercept = EP_filter_output_truth$log_likelihood, color = "EP Log-Likelihood"), 
+             linetype = "dashed", linewidth = 1) + # Horizontal line
+  labs(
+    x = "Iterations",  # X-axis label
+    y = "Log-Likelihood",  # Y-axis label
+    color = "Legend"  # Legend title
+  ) +
+  scale_color_manual(
+    values = c("EM Log-Likelihood" = "blue", "EP Log-Likelihood" = "red"), # Custom colors
+    labels = c("EM Log-Likelihood" = "EM Log-Likelihood", "EP Log-Likelihood" = "EP Exact Output") # Custom labels
+  ) +
+  theme_minimal()  # Minimal theme
+  
+########################################################################
+####################################NOT BALANCED
+########################################################################
+########################################################################
+
+set.seed(5)
+
+# GENERATE PARAMETERS
+
+beta_size = p + L
+
+a_0 = matrix(rep(0, beta_size), ncol = 1)
+P_0 = 0.5*(1/beta_size)*diag(beta_size)
+
+G = 0.3*diag(beta_size)
+for(i in 2:beta_size)
+{
+  sign = sample(c(-1, 1), 1)
+  G[i,i-1] = sign*0.2
+  G[i-1,i] = sign*0.2
+}
+
+W = 0.01*diag(beta_size)
+is_positive_definite(W)
+
+Sigma = 1.25*diag(L)
 for(i in 2:L)
 {
   sign = sample(c(-1, 1), 1)
-  Sigma[i,i-1] = sign*0.1
-  Sigma[i-1,i] = sign*0.1
+  Sigma[i,i-1] = sign*0.5
+  Sigma[i-1,i] = sign*0.5
 }
+is_positive_definite(Sigma)
+
+# Check mean variance of the fixed effect
+Sigma_cumul = parameters$P_0
+sum_var     = array(0, dim= c(L,L))
+elem = 0 
+for(t in 1:Time)
+{
+  Sigma_cumul = parameters$G%*%Sigma_cumul%*%t(parameters$G) + parameters$W
+  
+  elem = elem + dim(data_multinomial_probit$X[[t]])[1]
+  
+  list_variances = lapply(seq(1, dim(data_multinomial_probit$X[[t]])[1]), function(i) t(data_multinomial_probit$X[[t]][i,,])%*%Sigma_cumul%*%data_multinomial_probit$X[[t]][i,,])
+  
+  sum_var = sum_var + Reduce("+", list_variances)
+}
+
+df <- expand.grid(x = 1:nrow(sum_var/elem), y = 1:ncol(sum_var/elem))
+df$z <- as.vector(sum_var/elem)  # Assign values from the matrix
+
+ggplot(df, aes(x, y, fill = z)) +
+  geom_raster() +
+  scale_fill_viridis_c() + 
+  scale_y_reverse() +
+  coord_fixed() +
+  theme_minimal()
+
 
 # GENERATE DATA
 # Trace=1
@@ -131,7 +352,8 @@ plot_2 =ggplot(df_beta_long, aes(x = Time, y = Value, color = Type)) +
 grid.arrange(plot_1, plot_2, ncol = 1)
 
 # True likelihood
-EP_max_iterations = 5
+
+EP_max_iterations = 1000
 MC_samples = 10000
 tol = 10e-3
 
@@ -140,87 +362,88 @@ EP_sampling_filter_to_use <- function(data, parameters)
   return(EP_sampling_filter(data, parameters, EP_max_iterations, MC_samples, tol))
 }
 
+
 EP_filter_output_truth   = EP_sampling_filter_to_use(data_multinomial_probit, parameters)
 EP_smoother_output_truth = Gaussian_smoother(data_multinomial_probit, parameters, EP_filter_output_truth)
 
 # EM algorithm
-EM_iterations = 100
-learn_G = TRUE
-learn_W = TRUE
+EM_iterations = 2000
+learn_G = FALSE
+learn_W = FALSE
 learn_Sigma = TRUE
+
+if((learn_G) & !(learn_W) & !(learn_Sigma))
+{
+  initial_parameters = list(a_0 = parameters$a_0, P_0 = parameters$P_0, 
+                            G = diag(beta_size), 
+                            W = parameters$W, 
+                            Sigma = parameters$Sigma)
+}
+
 
 if((learn_G & learn_W) & !(learn_Sigma))
 {
-  initial_parameters = list(a_0 = a_0, P_0 = P_0, 
+  initial_parameters = list(a_0 = parameters$a_0, P_0 = parameters$P_0, 
                             G = diag(beta_size), 
                             W = diag(dim(parameters$W)[1]), 
-                            Sigma = Sigma)
+                            Sigma = parameters$Sigma)
 }
 
 if(learn_Sigma & !(learn_G) & !(learn_W))
 {
-  initial_parameters = list(a_0 = a_0, P_0 = P_0, 
-                            G = G, 
-                            W = W, 
+  initial_parameters = list(a_0 = parameters$a_0, P_0 = parameters$P_0, 
+                            G = parameters$G, 
+                            W = parameters$W, 
                             Sigma = diag(L))
 }
 
 if(learn_Sigma & learn_G & !(learn_W))
 {
-  initial_parameters = list(a_0 = a_0, P_0 = P_0, 
+  initial_parameters = list(a_0 = parameters$a_0, P_0 = parameters$P_0, 
                             G = diag(beta_size), 
-                            W = W, 
+                            W = parameters$W, 
                             Sigma = diag(L))
 }
 
 if(learn_Sigma & learn_G & learn_W)
 {
-  initial_parameters = list(a_0 = a_0, P_0 = P_0, 
+  initial_parameters = list(a_0 = parameters$a_0, P_0 = parameters$P_0, 
                             G = diag(beta_size), 
                             W = diag(dim(parameters$W)[1]), 
                             Sigma = diag(L))
 }
 
 EM_output_EP = multinomial_probit_EM(data_multinomial_probit, EP_sampling_filter_to_use, initial_parameters,
-                                  EM_iterations,
-                                  learn_G, learn_W, learn_Sigma, 
-                                  type = "non_std",
-                                  log = list(TRUE, c(directory_name, name_simulation)))
+                                     EM_iterations,
+                                     learn_G, learn_W, learn_Sigma, 
+                                     type = "nonstd",
+                                     log = list(TRUE, c(directory_name, name_simulation)))
 
-# EM_output_ADF = multinomial_probit_EM_trace(data_multinomial_probit, ADF_sampling_filter, initial_parameters, 
-#                                             EM_iterations,
-#                                             learn_G, learn_W, learn_Sigma, type = "ADF")
+save(data_multinomial_probit, file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_nonstd_unbalanced_2_data_multinomial_probit.Rdata"))
+save(EP_filter_output_truth, file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_nonstd_unbalanced_2_EP_truth.Rdata"))
+save(EM_output_EP,           file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_nonstd_unbalanced_2_EP_EM.Rdata"))
 
-save(data_multinomial_probit, file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_data_multinomial_probit.Rdata"))
-save(ADF_filter_output_truth, file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_ADF_truth.Rdata"))
-save(EM_output_ADF,           file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_ADF_EM.Rdata"))
 
-Trace_EM = sum(diag(EM_output_ADF$Sigma_history[EM_iterations+1,,]))
-EM_parameters = list(a_0 = a_0, P_0 = P_0/Trace_EM, 
-                     G = EM_output_ADF$G_history[EM_iterations+1,,], 
-                     W = W/Trace_EM, 
-                     Sigma = EM_output_ADF$Sigma_history[EM_iterations+1,,]/Trace_EM)
+Trace_EM = sum(diag(EM_output_EP$Sigma_history[EM_iterations+1,,]))
+EM_parameters = list(a_0 = parameters$a_0, P_0 = parameters$P_0/Trace_EM, 
+                     G = parameters$G, 
+                     W = parameters$W/Trace_EM, 
+                     Sigma = EM_output_EP$Sigma_history[EM_iterations+1,,]/Trace_EM)
 
-ADF_filter_output_EM   = ADF_sampling_filter(data_multinomial_probit, EM_parameters)
-ADF_smoother_output_EM = Gaussian_smoother(data_multinomial_probit, EM_parameters, ADF_filter_output_EM)
+EP_filter_output_EM   = EP_sampling_filter_to_use(data_multinomial_probit, EM_parameters)
+EP_smoother_output_EM = Gaussian_smoother(data_multinomial_probit, EM_parameters, EP_filter_output_EM)
 
-df_EM_ADF = data.frame(type ="EM ADF", 
-                   log_likelihood_distance    = ADF_filter_output_EM$log_likelihood-ADF_filter_output_truth$log_likelihood,
-                   filter_distance_from_truth = mean_wasserstein_sampling(ADF_filter_output_EM$sampling_history,
-                                                                          ADF_filter_output_truth$sampling_history),
-                   smoothing_distance_from_truth = mean_wasserstein_gaussian(ADF_smoother_output_EM, 
-                                                                             ADF_smoother_output_truth))
-
+# PLOT LOG-LIKELIHOOD
 # Create a data frame for the line plot
 df <- data.frame(
   iterations = 1:(EM_iterations+1),
-  log_likelihood = EM_output_ADF$log_likelihood_history
+  log_likelihood = EM_output_EP$log_likelihood_history
 )
 
 # Create the plot
 ggplot() +
   geom_line(data = df, aes(x = iterations, y = log_likelihood, color = "EM Log-Likelihood"), size = 1) + # Line plot
-  geom_hline(aes(yintercept = ADF_filter_output_truth$log_likelihood, color = "ADF Log-Likelihood"), 
+  geom_hline(aes(yintercept = EP_filter_output_truth$log_likelihood, color = "EP Log-Likelihood"), 
              linetype = "dashed", linewidth = 1) + # Horizontal line
   labs(
     x = "Iterations",  # X-axis label
@@ -228,168 +451,55 @@ ggplot() +
     color = "Legend"  # Legend title
   ) +
   scale_color_manual(
-    values = c("EM Log-Likelihood" = "blue", "ADF Log-Likelihood" = "red"), # Custom colors
-    labels = c("EM Log-Likelihood" = "EM Log-Likelihood", "ADF Log-Likelihood" = "EP Exact Output") # Custom labels
+    values = c("EM Log-Likelihood" = "blue", "EP Log-Likelihood" = "red"), # Custom colors
+    labels = c("EM Log-Likelihood" = "EM Log-Likelihood", "EP Log-Likelihood" = "EP Exact Output") # Custom labels
   ) +
   theme_minimal()  # Minimal theme
 
 
-color_list <- c("blue", "black", "red", "green", "brown")
 
-# PLOT FILTERING
-# Create a data frame for plotting
-data_list <- list()
-for (j in 1:4) {
-  i =1
-  
-  df_filter <- data.frame(
-    x = seq(0, Time, length.out = Time+1),
-    y1 = data_multinomial_probit$Beta[, 1*(j-1) + i],
-    y2 = ADF_filter_output_EM$a_history[, 1*(j-1) + i],
-    y_upper = ADF_filter_output_EM$a_history[, 1*(j-1) + i] + 1.96 * sqrt(ADF_filter_output_EM$P_history[, 1*(j-1) + i, 1*(j-1) + i]),
-    y_lower = ADF_filter_output_EM$a_history[, 1*(j-1) + i] - 1.96 * sqrt(ADF_filter_output_EM$P_history[, 1*(j-1) + i, 1*(j-1) + i]),
-    color = color_list[i],
-    facet_row = j,
-    facet_col = "ADF"
-  )
-  data_list[[length(data_list) + 1]] <- df_filter
-  
-  df_filter <- data.frame(
-    x = seq(0, Time, length.out = Time+1),
-    y1 = data_multinomial_probit$Beta[, 1*(j-1) + i],
-    y2 = ADF_filter_output_truth$a_history[, 1*(j-1) + i],
-    y_upper = ADF_filter_output_truth$a_history[, 1*(j-1) + i] + 1.96 * sqrt(ADF_filter_output_truth$P_history[, 1*(j-1) + i, 1*(j-1) + i]),
-    y_lower = ADF_filter_output_truth$a_history[, 1*(j-1) + i] - 1.96 * sqrt(ADF_filter_output_truth$P_history[, 1*(j-1) + i, 1*(j-1) + i]),
-    color = color_list[i+1],
-    facet_row = j,
-    facet_col = "True parameters"
-  )
-  data_list[[length(data_list) + 1]] <- df_filter
-  
+###############################################################################
+###############################################################################
+###############################################################################
+# Set up a 3x3 plot grid
+
+load("~/R_directory/dynamic_multinomial_probit/data/inference_synthetic_EP_p_7_mt_20_L_3_Time_5/inference_synthetic_EP_p_7_mt_20_L_3_Time_5_nonstd_unbalanced_2_EP_EM.Rdata")
+EM_output_EP_unbalanced = EM_output_EP
+
+load("~/R_directory/dynamic_multinomial_probit/data/inference_synthetic_EP_p_7_mt_20_L_3_Time_5/inference_synthetic_EP_p_7_mt_20_L_3_Time_5_nonstd_balanced_EP_EM.Rdata")
+EM_output_EP_balanced = EM_output_EP
+
+par(mfrow = c(3, 3), mar = c(2, 2, 2, 1), oma = c(0, 0, 2, 0))  # optional: adjust margins
+
+# Plot each matrix element
+for (i in 1:3) {
+  for (j in 1:3) {
+    
+    balanced   = EM_output_EP_balanced$Sigma_history[800:1000,i,j]
+    unbalanced = EM_output_EP_unbalanced$Sigma_history[800:1000,i,j]
+    
+    unbalanced = abs(unbalanced - unbalanced[1])
+    balanced   = abs(balanced   - balanced[1])
+    
+    # Define y-limits to fit both
+    ylims <- range(c(balanced, unbalanced))
+    
+    # Plot
+    plot(unbalanced, type = "l", col = "red", lwd = 2,
+         ylim = ylims, main = paste0("(", i, ",", j, ")"),
+         xlab = "", ylab = "")
+    lines(balanced, col = "blue", lwd = 2)
+
+    # Optional: add legend only in the last subplot
+    if (i == 1 && j == 1) {
+      legend("bottomright", legend = c("Unbalanced", "Balanced"),
+             col = c("red", "blue"), lty = 1, lwd = 2, bty = "n", cex = 0.8)
+    }
+  }
 }
-
-plot_data <- bind_rows(data_list)
-
-# Create the ggplot
-ggplot(plot_data, aes(x = x)) +
-  geom_line(aes(y = y1, color = color), alpha = 0.5) +
-  geom_line(aes(y = y2, color = color), alpha = 1.0) +
-  geom_ribbon(aes(ymin = y_lower, ymax = y_upper, fill = color), alpha = 0.5) +
-  facet_grid(facet_row ~ facet_col) +
-  scale_color_identity() +
-  scale_fill_identity() +
-  theme_minimal() +
-  theme( panel.spacing = unit(1, "lines"))+
-  labs(x = "Time", y = "Beta")    
-
-# PLOT SMOOTHING
-# Create a data frame for plotting
-data_list <- list()
-for (j in 1:4) {
-  i =1
-  
-  df_filter <- data.frame(
-    x = seq(0, Time, length.out = Time+1),
-    y1 = data_multinomial_probit$Beta[, 1*(j-1) + i],
-    y2 = ADF_smoother_output_EM$a_history[, 1*(j-1) + i],
-    y_upper = ADF_smoother_output_EM$a_history[, 1*(j-1) + i] + 1.96 * sqrt(ADF_smoother_output_EM$P_history[, 1*(j-1) + i, 1*(j-1) + i]),
-    y_lower = ADF_smoother_output_EM$a_history[, 1*(j-1) + i] - 1.96 * sqrt(ADF_smoother_output_EM$P_history[, 1*(j-1) + i, 1*(j-1) + i]),
-    color = color_list[i],
-    facet_row = j,
-    facet_col = "EP"
-  )
-  data_list[[length(data_list) + 1]] <- df_filter
-  
-  df_filter <- data.frame(
-    x = seq(0, Time, length.out = Time+1),
-    y1 = data_multinomial_probit$Beta[, 1*(j-1) + i],
-    y2 = ADF_smoother_output_truth$a_history[, 1*(j-1) + i],
-    y_upper = ADF_smoother_output_truth$a_history[, 1*(j-1) + i] + 1.96 * sqrt(ADF_smoother_output_truth$P_history[, 1*(j-1) + i, 1*(j-1) + i]),
-    y_lower = ADF_smoother_output_truth$a_history[, 1*(j-1) + i] - 1.96 * sqrt(ADF_smoother_output_truth$P_history[, 1*(j-1) + i, 1*(j-1) + i]),
-    color = color_list[i+1],
-    facet_row = j,
-    facet_col = "Exact"
-  )
-  data_list[[length(data_list) + 1]] <- df_filter
-  
-}
-
-plot_data <- bind_rows(data_list)
-
-# Create the ggplot
-ggplot(plot_data, aes(x = x)) +
-  geom_line(aes(y = y1, color = color), alpha = 0.5) +
-  geom_line(aes(y = y2, color = color), alpha = 1.0) +
-  geom_ribbon(aes(ymin = y_lower, ymax = y_upper, fill = color), alpha = 0.5) +
-  facet_grid(facet_row ~ facet_col) +
-  scale_color_identity() +
-  scale_fill_identity() +
-  theme_minimal() +
-  theme( panel.spacing = unit(1, "lines"))+
-  labs(x = "Time", y = "Beta")    
-
-
-# # Extract the matrix dimensions
-# n <- 3 #dim(EM_output_ADF$G_history)[2] # Number of rows/columns in G
-# 
-# # Reshape data for ggplot
-# df_list <- lapply(1:n, function(i) {
-#   lapply(1:n, function(j) {
-#     data.frame(
-#       iteration = 1:(EM_iterations+1),
-#       G_value = EM_output_ADF$G_history[1:(EM_iterations+1), i, j],
-#       i = i,
-#       j = j,
-#       true_value = parameters$G[i, j]
-#     )
-#   })
-# })
-# df <- do.call(rbind, do.call(rbind, df_list))
-# 
-# # Create the plot
-# ggplot(df, aes(x = iteration, y = G_value)) +
-#   geom_line(color = "blue", size = 1) +                           # Line plot for G history
-#   geom_hline(aes(yintercept = true_value),                       # Horizontal line for true value
-#              color = "red", linetype = "dashed", size = 1) +
-#   facet_grid(i ~ j, labeller = label_both) +                     # Subfigures for each (i, j)
-#   labs(
-#     x = "Iterations",                                            # X-axis label
-#     y = "G Value",                                               # Y-axis label
-#   ) +
-#   theme_minimal() +
-#   theme(
-#     strip.text = element_text(size = 8)                          # Adjust facet label size
-#   )
-# 
-# # Extract the matrix dimensions
-# n <- 3 # dim(EM_output$Sigma_history)[2] # Number of rows/columns in Sigma
-# 
-# # Reshape data for ggplot
-# df_list <- lapply(1:n, function(i) {
-#   lapply(1:n, function(j) {
-#     data.frame(
-#       iteration = 1:(EM_iterations+1),
-#       Sigma_value = EM_output_ADF$Sigma_history[1:(EM_iterations+1), i, j],
-#       i = i,
-#       j = j,
-#       true_value = parameters$Sigma[i, j]
-#     )
-#   })
-# })
-# 
-# df <- do.call(rbind, do.call(rbind, df_list))
-# 
-# # Create the plot
-# ggplot(df, aes(x = iteration, y = Sigma_value)) +
-#   geom_line(color = "blue", size = 1) +                           # Line plot for G history
-#   geom_hline(aes(yintercept = true_value),                       # Horizontal line for true value
-#              color = "red", linetype = "dashed", size = 1) +
-#   facet_grid(i ~ j, labeller = label_both) +                     # Subfigures for each (i, j)
-#   labs(
-#     x = "Iterations",                                            # X-axis label
-#     y = "Sigma Value",                                               # Y-axis label
-#   ) +
-#   theme_minimal() +
-#   theme(
-#     strip.text = element_text(size = 8)                          # Adjust facet label size
-#   )
+    
+    
+    
+    
+    
+    
