@@ -82,12 +82,13 @@ for(i in 1:end)
 
 set.seed(5)
 
-source("../model.R")
-source("../multinomial_probit_sampling_filter.R")
-source("../multinomial_probit_filter_exact.R")
-source("../multinomial_probit_filter_EP.R")
-source("../multinomial_probit_gaussian_smoothing.R")
+source("../scripts/model.R")
+source("../scripts/multinomial_probit_filter_ADF.R")
+source("../scripts/multinomial_probit_filter_exact.R")
+source("../scripts/multinomial_probit_filter_EP.R")
+source("../scripts/multinomial_probit_gaussian_smoothing.R")
 source("Temp_expedia_EM.R")
+source("../scripts/multinomial_probit_EM.R")
 
 Time= length(Y)
 
@@ -98,8 +99,8 @@ beta_size = p + L
 a_0 = matrix(rep(0, beta_size), ncol = 1)
 P_0 = 0.1*diag(beta_size)
 
-G = diag(beta_size)
-W = 0.1*diag(beta_size)
+G = 0.9*diag(beta_size)
+W = 0.05*diag(beta_size)
 Sigma = diag(L)
 
 data_multinomial_probit = list(X = X, Y = Y)
@@ -128,30 +129,36 @@ learn_G = F
 learn_W = F
 learn_Sigma = TRUE
 
-initial_parameters = list(a_0 = matrix(rep(0, beta_size), ncol = 1),
-                            P_0 = 0.1*diag(beta_size),
-                            G = diag(beta_size),
-                            W = 0.1*diag(beta_size),
+initial_parameters = list(a_0 = a_0,
+                            P_0 = P_0,
+                            G = G,
+                            W = W,
                             Sigma = diag(L))
 
-EM_output = multinomial_probit_EM(data_multinomial_probit, EP_sampling_filter, initial_parameters, 
-                                  EM_iterations,
-                                  learn_G, learn_W, learn_Sigma)
+# EM_output = multinomial_probit_EM(data_multinomial_probit, EP_sampling_filter, initial_parameters, 
+#                                   EM_iterations,
+#                                   learn_G, learn_W, learn_Sigma)
+# 
+# 
+# 
+# initial_parameters = list(a_0 = matrix(rep(0, beta_size), ncol = 1),
+#                           P_0 = diag(beta_size),
+#                           G = EM_output$G_history[5,,],
+#                           W = EM_output$W_history[5,,],
+#                           Sigma = EM_output$Sigma_history[5,,])
+
+# EM_output = multinomial_probit_EM(data_multinomial_probit, EP_sampling_filter, initial_parameters, 
+#                                   EM_iterations,
+#                                   learn_G, learn_W, learn_Sigma)
+
+EM_output <- multinomial_probit_EM_constrained(data_multinomial_probit, EP_sampling_filter, initial_parameters,
+                                               EM_iterations,
+                                               learn_G, learn_W, learn_Sigma, type = "nonstd",
+                                               log = c(FALSE, NA),
+                                               target_trace = L)
 
 
-
-initial_parameters = list(a_0 = matrix(rep(0, beta_size), ncol = 1),
-                          P_0 = diag(beta_size),
-                          G = EM_output$G_history[5,,],
-                          W = EM_output$W_history[5,,],
-                          Sigma = EM_output$Sigma_history[5,,])
-
-EM_output = multinomial_probit_EM(data_multinomial_probit, EP_sampling_filter, initial_parameters, 
-                                  EM_iterations,
-                                  learn_G, learn_W, learn_Sigma)
-
-
-as.matrix(read.csv("R_directory/dynamic_multinomial_probit/expedia_data/G_history.csv"))
+# as.matrix(read.csv("R_directory/dynamic_multinomial_probit/expedia_data/G_history.csv"))
 
 
 

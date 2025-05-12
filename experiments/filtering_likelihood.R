@@ -26,13 +26,13 @@ library(tidyr)
 
 # SET UP THE SIMULATION
 L = 3 # number of choices
-Time= 50 # number of time steps
+Time= 20 # number of time steps
 
 p_X = 2 # number of subject dependent covariates
 p_Y = 3 # number of choice dependent covariates
 p = p_X*L + p_Y
 
-expected_m_t = 50
+expected_m_t = 10
 
 name_init="filt_smoot_lik_p_"
 
@@ -134,7 +134,7 @@ grid.arrange(plot_1, plot_2, ncol = 1)
 # COMPUTE FILTERS
 EP_max_iterations = 5
 tol= 10e-4
-MC_samples = 1000
+MC_samples = 5e3
 
 sliding_window = 10
 
@@ -231,6 +231,7 @@ print(summary_table, row.names = FALSE)
 save(data_multinomial_probit, file    = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_data_multinomial_probit.Rdata"))
 save(EP_filter_sampler_output, file    = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_EP_filter.Rdata"))
 save(ADF_filter_sampler_output, file   = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_ADF_filter.Rdata"))
+save(SMC_filter_sampler_output, file   = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_SMC_filter.Rdata"))
 save(exact_filter_sampler_output, file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_exact_filter.Rdata"))
 
 color_list <- c("blue", "black", "red", "magenta", "brown")
