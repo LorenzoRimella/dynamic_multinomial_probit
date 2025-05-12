@@ -18,3 +18,9 @@ STEPS:
 - expedia con G e W fissati (G=0.5 Identita, W e P_0 per stazionarieta)
 
 - se bene sopra impara G e Sigma
+
+
+Nuovo EM:
+
+- forma chiusa fino a quando la likelihood inizia a scendere (threshold? Hessiana?)
+- se non massimiziamo piu' cambia a un gradient ascent (controlla che e' semidef positiva)
