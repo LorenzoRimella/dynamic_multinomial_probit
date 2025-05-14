@@ -25,8 +25,12 @@ gaussian_prior <- function(data, parameters)
   return(list(a_history = a_history, P_history = P_history))
 }
 
-multinomial_probit_EM_invSigma <- function(data, filter, initial_parameters, EM_iterations = 100, type = "std",
-                                  log = list(FALSE, c(NA, NA)))
+
+multinomial_probit_EM_invSigma <- function(data, 
+                                           filter, type, 
+                                           initial_parameters, target_trace, 
+                                           EM_iterations, eps_sample_size,
+                                           log = list(FALSE, c(NA, NA)))
 {
   Time = length(data$Y)
   sum_m_t = sum(sapply(data$Y, length)) #Reduce("+", lapply(seq(1, Time), function(t) length(data$Y[[t]])))
@@ -35,31 +39,63 @@ multinomial_probit_EM_invSigma <- function(data, filter, initial_parameters, EM_
   
   log_likelihood_history = array(NA, dim = c(EM_iterations+1))
 
-  invSigma_history = array(NA, dim = c(EM_iterations+1, dim(parameters_current$Sigma)[1], dim(parameters_current$Sigma)[1]))
+  Sigma_history = array(NA, dim = c(EM_iterations+1, dim(parameters_current$Sigma)[1], dim(parameters_current$Sigma)[1]))
   
   for(iteration in 1:EM_iterations)
   {
     print("##########################################################")
     print(paste("Iteration nr ", iteration))
-    print("Matrix invSigma")
+    print("Matrix Sigma")
     print(parameters_current$Sigma)
-    invSigma_history[iteration,,] = solve(parameters_current$Sigma)
+    Sigma_history[iteration,,] = parameters_current$Sigma
     
     filter_output = filter(data, parameters_current)
     smoother_output = Gaussian_smoother(data, parameters_current, filter_output)
     log_likelihood_history[iteration] = filter_output$log_likelihood
-    print(filter_output$log_likelihood)
+    print(paste("The current log-likelihood is ", filter_output$log_likelihood))
 
     eps_history = epsilon_smoother(data, parameters_current, filter_output, smoother_output, type)
       
-    eps_SUN_sample = lapply(seq(1, Time), function(t) lapply(seq(1, length(data$Y[[t]])), function(i) rSUN(eps_history[[t]][[i]], 1000)))
+    eps_SUN_sample = lapply(seq(1, Time), function(t) lapply(seq(1, length(data$Y[[t]])), function(i) rSUN(eps_history[[t]][[i]], eps_sample_size)))
       
     eps_second_moment = lapply(seq(1, Time),
                                  function(t) lapply(seq(1, length(data$Y[[t]])),
                                                     function(i) cov(t(eps_SUN_sample[[t]][[i]])) + (t(t(apply(eps_SUN_sample[[t]][[i]], 1, mean))) %*% t(apply(eps_SUN_sample[[t]][[i]], 1, mean)))))
+
+    V = Reduce("+", lapply(seq(1, Time), function(t) Reduce("+", eps_second_moment[[t]])))
+
+    # Function that returns A as a function of c
+    A_func <- function(c) {
+      return((1/sum_m_t) * (V - 2 * c * diag(dim(V)[1])))
+    }
+    
+    # Function to compute trace of inverse of A(c)
+    trace_inv_A <- function(c) {
+      A <- A_func(c)
       
-    new_Sigma = Reduce("+", lapply(seq(1, Time), function(t) Reduce("+", eps_second_moment[[t]])))/sum_m_t
+      if (det(A) <= 1e-10) {
+        return(Inf)  # Avoid singular or near-singular matrices
+      }
       
+      A_inv <- solve(A)
+      return(sum(diag(A_inv)))
+    }
+    
+    # Root-finding function: solve trace_inv_A(c) = 5
+    root_function <- function(c) {
+      return(trace_inv_A(c) - target_trace)
+    }
+    
+    upper_lim = min(eigen(V, only.values = T)$values)/2
+    
+    result <- uniroot(root_function, lower = -10e+10, upper = upper_lim)
+    
+    lambda_opt <- result$root
+    
+    print(paste("Found root with lambda ", lambda_opt))
+
+    new_Sigma = (1/sum_m_t) * (V - 2 * lambda_opt * diag(1,L,L))
+    
     parameters_current$Sigma = (new_Sigma + t(new_Sigma))/2
     
     if(log[[1]])
@@ -80,7 +116,7 @@ multinomial_probit_EM_invSigma <- function(data, filter, initial_parameters, EM_
   print("END")
   print("Matrix Sigma")
   print(parameters_current$Sigma)
-  Sigma_history[iteration,,] = parameters_current$Sigma
+  Sigma_history[iteration+1,,] = parameters_current$Sigma
   
   filter_output = filter(data, parameters_current)
   smoother_output = Gaussian_smoother(data, parameters_current, filter_output)
@@ -88,7 +124,5 @@ multinomial_probit_EM_invSigma <- function(data, filter, initial_parameters, EM_
   print(filter_output$log_likelihood)
   
   return(list(log_likelihood_history = log_likelihood_history, 
-              G_history = G_history, 
-              W_history = W_history,
               Sigma_history = Sigma_history))
 }

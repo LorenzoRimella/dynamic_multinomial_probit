@@ -1,10 +1,100 @@
 library(Matrix)
+library(MASS)
+library(abind)
+
+library(mvtnorm)
+library(MomTrunc)
+library(TruncatedNormal)
+library(tlrmvnmvt)
+library(magic)
+
+library(matrixcalc)
+
+## r libraries ##
+library(purrr)
+library(furrr)
+library(dplyr)
+library(tidyr)
+
+one_hot <- function(position, dimension)
+{
+  vector = matrix(0, nrow = dimension, ncol = 1)
+  
+  if(position<=dimension){
+    vector[position] = 1 
+  }
+  
+  return(vector)
+}
+
+Phi<- function(mu, Sigma)
+{
+  Sigma = (Sigma+t(Sigma))/2
+  
+  # diag(1e-8, dim(Sigma)[1])
+  # is.positive.definite(Sigma+diag(1e-4, dim(Sigma)[1]), tol=1e-4)
+  
+  return(tlrmvnmvt::pmvn(upper = mu[,1], sigma = Sigma)[1])
+}
+
+V_minus_l <- function(l, L)
+{
+  if(L>1){
+    if(l!=0)
+    {
+      return(t(cbind(- one_hot(l,L), sapply(seq(1, L)[-l], function(i) one_hot(i,L) - one_hot(l,L)))))
+    }
+    
+    else
+    {
+      return(diag(L))
+    }
+  }
+  else{
+    if(l!=0)
+    {
+      return(-diag(L))
+    }
+    
+    else
+    {
+      return(diag(L))
+    }
+  }
+}
+
+X_minus_l <- function(x, l, L)
+{
+  if(L>1){
+    if(l!=0)
+    {
+      return(t(cbind(x[,l], sapply(seq(1, L)[-l], function(i) x[,l] - x[,i]))))
+    }
+    
+    else
+    {
+      return(t(sapply(seq(1, L), function(i) -x[,i])))
+    }
+  }
+  else{
+    if(l!=0)
+    {
+      return((t(x)))
+    }
+    
+    else
+    {
+      return((t(-x)))
+    }
+  }
+  
+}
 
 is_positive_definite <- function(matrix) {
   is.positive.definite(matrix, tol=1e-8)
 }
 
-sim_name <- function(name_init="filt_smoot_lik_p_", L, Time, p, expected_m_t)
+sim_name <- function(name_init, L, Time, p, expected_m_t)
 {
   string = paste(name_init, p, sep = "")
   string = paste(string, "_mt_", sep = "")

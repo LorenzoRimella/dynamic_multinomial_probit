@@ -157,7 +157,7 @@ EP_sampling_correction <- function(x_t, y_t, a_t_tm1, P_t_tm1, parameters, EP_ma
 }
 
 
-EP_sampling_filter <- function(data, parameters, EP_max_iterations = 5, MC_samples = 10000, tol = 10e-3)
+EP_sampling_filter <- function(data, parameters, EP_max_iterations, MC_samples, tol = 10e-3)
 {
   start_time <- Sys.time()
   L = dim(parameters$Sigma)[1]

@@ -1,10 +1,4 @@
-## r libraries ##
-library(purrr)
-library(furrr)
-library(dplyr)
-library(tidyr)
-
-SMC_sampling_filter <- function(data, parameters, MC_samples = 1000)
+SMC_sampling_filter <- function(data, parameters, MC_samples)
 {
   plan(multisession)
   

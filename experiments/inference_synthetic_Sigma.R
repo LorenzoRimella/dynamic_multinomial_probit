@@ -10,7 +10,7 @@ source("../scripts/multinomial_probit_filter_SMC.R")
 source("../scripts/multinomial_probit_filter_ADF.R")
 source("../scripts/multinomial_probit_filter_exact.R")
 source("../scripts/multinomial_probit_gaussian_smoothing.R")
-source("../scripts/multinomial_probit_EM.R")
+source("../scripts/multinomial_probit_EM_Sigma.R")
 
 library(ggplot2)
 library(tidyr)
@@ -51,17 +51,15 @@ set.seed(345)
 beta_size = p + L
 
 a_0 = matrix(rep(0, beta_size), ncol = 1)
-P_0 = diag(beta_size)
+P_0 = 0.5*diag(beta_size)
 
-G = 0.5*diag(beta_size)
-for(i in 2:beta_size)
-{
-  sign = sample(c(-1, 1), 1)
-  G[i,i-1] = sign*0.25
-  G[i-1,i] = sign*0.25
-}
+G = 0.1*diag(beta_size)
 
 W = 0.05*diag(beta_size)
+
+for (i in 1:100){
+  P_0 = G%*%P_0%*%t(G) + W
+}
 
 Sigma = 0.2*diag(L)
 Sigma[1,1] = 0.5
@@ -72,7 +70,13 @@ for(i in 2:L)
   Sigma[i-1,i] = sign*0.1
 }
 
-parameters = list(a_0 = a_0, P_0 = L*P_0/sum(diag(Sigma)), G = G, W = L*W/sum(diag(Sigma)), Sigma = L*Sigma/sum(diag(Sigma)))
+target_trace = 5*L
+
+invSigma = solve(Sigma)
+invSigma = target_trace*invSigma/(sum(diag((invSigma))))
+Sigma_update = solve(invSigma)
+
+parameters = list(a_0 = a_0, P_0 = P_0, G = G, W = W, Sigma = Sigma_update)
 
 # GENERATE DATA
 # Trace=1
@@ -149,55 +153,18 @@ ADF_filter_output_truth   = ADF_sampling_filter(data_multinomial_probit, paramet
 ADF_smoother_output_truth = Gaussian_smoother(data_multinomial_probit, parameters, ADF_filter_output_truth)
 
 # EM algorithm
-EM_iterations = 3000
-learn_G = FALSE
-learn_W = FALSE
-learn_Sigma = TRUE
+EM_iterations = 1000
+eps_sample_size = 10000
 
-if((learn_G) & !(learn_W) & !(learn_Sigma))
-{
-  initial_parameters = list(a_0 = parameters$a_0, P_0 = parameters$P_0, 
-                            G = diag(beta_size), 
-                            W = parameters$W, 
-                            Sigma = parameters$Sigma)
-}
-
-
-if((learn_G & learn_W) & !(learn_Sigma))
-{
-  initial_parameters = list(a_0 = parameters$a_0, P_0 = parameters$P_0, 
-                            G = diag(beta_size), 
-                            W = diag(dim(parameters$W)[1]), 
-                            Sigma = parameters$Sigma)
-}
-
-if(learn_Sigma & !(learn_G) & !(learn_W))
-{
-  initial_parameters = list(a_0 = parameters$a_0, P_0 = parameters$P_0, 
+initial_parameters = list(a_0 = parameters$a_0, P_0 = parameters$P_0, 
                             G = parameters$G, 
                             W = parameters$W, 
                             Sigma = diag(L))
-}
 
-if(learn_Sigma & learn_G & !(learn_W))
-{
-  initial_parameters = list(a_0 = parameters$a_0, P_0 = parameters$P_0, 
-                            G = diag(beta_size), 
-                            W = parameters$W, 
-                            Sigma = diag(L))
-}
-
-if(learn_Sigma & learn_G & learn_W)
-{
-  initial_parameters = list(a_0 = parameters$a_0, P_0 = parameters$P_0, 
-                            G = diag(beta_size), 
-                            W = diag(dim(parameters$W)[1]), 
-                            Sigma = diag(L))
-}
-
-EM_output_ADF = multinomial_probit_EM(data_multinomial_probit, ADF_sampling_filter, initial_parameters,
-                                  EM_iterations,
-                                  learn_G, learn_W, learn_Sigma, type = "std")
+EM_output_ADF = multinomial_probit_EM_invSigma(data_multinomial_probit, 
+                                               ADF_sampling_filter, "std",
+                                               initial_parameters, target_trace,
+                                               EM_iterations, eps_sample_size)
 
 par(mfrow = c(3, 3), mar = c(2, 2, 2, 1), oma = c(0, 0, 2, 0))  # optional: adjust margins
 
@@ -205,7 +172,7 @@ par(mfrow = c(3, 3), mar = c(2, 2, 2, 1), oma = c(0, 0, 2, 0))  # optional: adju
 for (i in 1:3) {
   for (j in 1:3) {
     
-    balanced   = EM_output_ADF$Sigma_history[800:1000,i,j]
+    balanced   = EM_output_ADF$Sigma_history[1:1000,i,j]
     
     balanced   = balanced
   
@@ -219,27 +186,14 @@ for (i in 1:3) {
   }
 }
 
-# sub_iter = dim(EM_subset_output$P_0_history)[1]
-# initial_parameters = list(a_0 = a_0, P_0 = EM_subset_output$P_0_history[sub_iter,,], 
-#                      G = EM_subset_output$G_history[sub_iter,,], 
-#                      W = EM_subset_output$W_history[sub_iter,,], 
-#                      Sigma = EM_subset_output$Sigma_history[sub_iter,,])
-# 
-# EM_output_ADF = multinomial_probit_EM_trace(data_multinomial_probit, ADF_sampling_filter, initial_parameters,
-#                                             EM_iterations,
-#                                             learn_G, learn_W, learn_Sigma, type = "std", 
-#                                             normalization = 1,
-#                                             log = list(TRUE, c(directory_name, name_simulation)))
-
 save(data_multinomial_probit, file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_data_multinomial_probit.Rdata"))
 save(ADF_filter_output_truth, file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_ADF_truth.Rdata"))
 save(EM_output_ADF,           file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_ADF_EM.Rdata"))
 
-Trace_EM = sum(diag(EM_output_ADF$Sigma_history[EM_iterations+1,,]))
-EM_parameters = list(a_0 = a_0, P_0 = P_0/Trace_EM, 
-                     G = EM_output_ADF$G_history[EM_iterations+1,,], 
-                     W = W/Trace_EM, 
-                     Sigma = EM_output_ADF$Sigma_history[EM_iterations+1,,]/Trace_EM)
+EM_parameters = list(a_0 = a_0, P_0 = P_0, 
+                     G = G, 
+                     W = W, 
+                     Sigma = EM_output_ADF$Sigma_history[EM_iterations+1,,])
 
 ADF_filter_output_EM   = ADF_sampling_filter(data_multinomial_probit, EM_parameters)
 ADF_smoother_output_EM = Gaussian_smoother(data_multinomial_probit, EM_parameters, ADF_filter_output_EM)
@@ -261,7 +215,7 @@ df <- data.frame(
 ggplot() +
   geom_line(data = df, aes(x = iterations, y = log_likelihood, color = "EM Log-Likelihood"), size = 1) + # Line plot
   geom_hline(aes(yintercept = ADF_filter_output_truth$log_likelihood, color = "ADF Log-Likelihood"), 
-             linetype = "dashed", linewidth = 1) + # Horizontal line
+             linetype = "dashed", size = 1) + # Horizontal line
   labs(
     x = "Iterations",  # X-axis label
     y = "Log-Likelihood",  # Y-axis label

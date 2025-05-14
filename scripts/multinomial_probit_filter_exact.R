@@ -1,10 +1,3 @@
-library(mvtnorm)
-library(TruncatedNormal)
-library(magic)
-
-library(MomTrunc)
-library(tlrmvnmvt)
-
 exact_prediction <- function(SUN_parameters_t, parameters)
 {
   xi_next = parameters$G %*% SUN_parameters_t$xi_t
@@ -85,7 +78,7 @@ exact_correction <- function(x_t, y_t, SUN_prediction_parameters, parameters)
 }
 
 
-exact_sampling_filter <- function(data, parameters, sliding_window, MC_samples = 1000)
+exact_sampling_filter <- function(data, parameters, sliding_window, MC_samples)
 {
   start_time <- Sys.time()
   Time = length(data$Y)

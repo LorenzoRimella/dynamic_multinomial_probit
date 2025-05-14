@@ -1,12 +1,9 @@
-library(MASS)
-library(abind)
-
 kernel_parameters <- function(beta, parameters)
 {
   return(list(a_t = parameters$G %*% beta, P_t = parameters$W))
 }
 
-simulator_given_covariates <- function(data, parameters, hyperparameters = list(lambda_M = 20, N_max = 40, prediction_bool = FALSE), Time)
+simulator_given_covariates <- function(data, parameters, hyperparameters = list(lambda_M, N_max, prediction_bool = FALSE), Time)
 {
   Beta = matrix(NA, ncol = dim(parameters$a_0)[1], nrow =  Time+1)
   X    = list()
@@ -52,7 +49,7 @@ simulator_given_covariates <- function(data, parameters, hyperparameters = list(
   }
 }
 
-simulator <- function(X_cov, Y_cov, parameters, hyperparameters = list(lambda_M = 20, N_max = 40, prediction_bool = FALSE), Time)
+simulator <- function(X_cov, Y_cov, parameters, hyperparameters = list(lambda_M, N_max, prediction_bool = FALSE), Time)
 {
   L = dim(parameters$Sigma)[1]
   M_t = rpois(Time, hyperparameters$lambda_M) # number of customers per time steps
