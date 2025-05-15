@@ -10,7 +10,7 @@ source("../scripts/multinomial_probit_filter_SMC.R")
 source("../scripts/multinomial_probit_filter_ADF.R")
 source("../scripts/multinomial_probit_filter_exact.R")
 source("../scripts/multinomial_probit_gaussian_smoothing.R")
-source("../scripts/multinomial_probit_EM.R")
+source("../scripts/multinomial_probit_EM_Sigma.R")
 
 library(ggplot2)
 library(tidyr)
@@ -131,13 +131,24 @@ P_0 = 1/beta_size*diag(beta_size)
 
 G = 0.1*diag(beta_size)
 W = 0.1*diag(beta_size)
+
+# Set P_0 to the invariant measure
+for (i in 1:1000){
+  P_0 = G%*%P_0%*%t(G) + W
+}
+
 Sigma = diag(L)
+target_trace = 5*L
+
+invSigma = solve(Sigma)
+invSigma = target_trace*invSigma/(sum(diag((invSigma))))
+Sigma_update = solve(invSigma)
 
 initial_parameters = list(a_0 = a_0,
-                          P_0 = L*P_0/sum(diag(Sigma)),
-                          G = G,
-                          W = L*W/sum(diag(Sigma)),
-                          Sigma = L*Sigma/sum(diag(Sigma)))
+                          P_0 = P_0,
+                          G   = G,
+                          W   = W,
+                          Sigma = Sigma_update)
 
 # Check mean variance of the fixed effect
 Sigma_cumul = initial_parameters$P_0
@@ -167,6 +178,7 @@ ggplot(df, aes(x, y, fill = z)) +
 # Filter
 EP_max_iterations = 5
 MC_samples = 10000
+eps_sample_size = 10000
 tol = 10e-3
 
 EP_sampling_filter_to_use <- function(data, parameters)
@@ -176,14 +188,13 @@ EP_sampling_filter_to_use <- function(data, parameters)
 
 # EM algorithm
 EM_iterations = 100
-learn_G = TRUE
-learn_W = FALSE
-learn_Sigma = TRUE
 
-EM_output_EP = multinomial_probit_EM(data_multinomial_probit, EP_sampling_filter_to_use, initial_parameters,
-                                     EM_iterations,
-                                     learn_G, learn_W, learn_Sigma, type = "nonstd",
-                                     log = list(TRUE, c(directory_name, name_simulation)))
+
+EM_output_EP = multinomial_probit_EM_invSigma(data_multinomial_probit, 
+                                              EP_sampling_filter_to_use, type = "nonstd",
+                                              initial_parameters, target_trace,
+                                              EM_iterations, eps_sample_size, 
+                                              log = list(TRUE, c(directory_name, name_simulation)))
 
 plot(EM_output_EP$log_likelihood_history)
 

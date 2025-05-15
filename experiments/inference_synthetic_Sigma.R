@@ -25,13 +25,13 @@ library(tidyr)
 
 # SET UP THE SIMULATION
 L = 3 # number of choices
-Time= 5 # number of time steps
+Time= 10 # number of time steps
 
 p_X = 2 # number of subject dependent covariates
 p_Y = 1 # number of choice dependent covariates
 p = p_X*L + p_Y
 
-expected_m_t = 20
+expected_m_t = 10
 
 name_init="inference_synthetic_ADF_trace_p_"
 
@@ -156,15 +156,36 @@ ADF_smoother_output_truth = Gaussian_smoother(data_multinomial_probit, parameter
 EM_iterations = 1000
 eps_sample_size = 10000
 
+invSigma_init = target_trace*diag(L)/(sum(diag((diag(L)))))
+Sigma_init = solve(invSigma_init)
+
 initial_parameters = list(a_0 = parameters$a_0, P_0 = parameters$P_0, 
                             G = parameters$G, 
                             W = parameters$W, 
-                            Sigma = diag(L))
+                            Sigma = Sigma_init)
 
 EM_output_ADF = multinomial_probit_EM_invSigma(data_multinomial_probit, 
                                                ADF_sampling_filter, "std",
                                                initial_parameters, target_trace,
                                                EM_iterations, eps_sample_size)
+
+# Filter
+EP_max_iterations = 5
+MC_samples = 10000
+eps_sample_size = 10000
+tol = 10e-3
+
+EP_sampling_filter_to_use <- function(data, parameters)
+{
+  return(EP_sampling_filter(data, parameters, EP_max_iterations, MC_samples, tol))
+}
+
+
+EM_output_EP = multinomial_probit_EM_invSigma(data_multinomial_probit, 
+                                              EP_sampling_filter_to_use, type = "nonstd",
+                                              initial_parameters, target_trace,
+                                              EM_iterations, eps_sample_size, 
+                                              log = list(TRUE, c(directory_name, name_simulation)))
 
 par(mfrow = c(3, 3), mar = c(2, 2, 2, 1), oma = c(0, 0, 2, 0))  # optional: adjust margins
 
