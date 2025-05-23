@@ -37,7 +37,7 @@ L = 10
 t_0  = min(data_X$t)
 Time = max(data_X$t)
 
-end   = 60 #Time - t_0 + 1
+end   = 30 #Time - t_0 + 1
 
 X = list()
 Y = list()
@@ -129,16 +129,18 @@ beta_size = p + L
 a_0 = matrix(rep(0, beta_size), ncol = 1)
 P_0 = 1/beta_size*diag(beta_size)
 
-G = 0.1*diag(beta_size)
-W = 0.1*diag(beta_size)
+G = 0.1*P_0
+W = (1-0.1*0.1)*P_0
 
-# Set P_0 to the invariant measure
-for (i in 1:1000){
-  P_0 = G%*%P_0%*%t(G) + W
-}
+# the invariant distr is N(0,P_0)
 
 Sigma = diag(L)
-target_trace = 5*L
+target_trace = L
+# = 1/L comput singular system
+# = L big values
+# = 5*L big values
+# = 1 still exploding values
+# = L*L valori intermedi
 
 invSigma = solve(Sigma)
 invSigma = target_trace*invSigma/(sum(diag((invSigma))))

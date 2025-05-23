@@ -15,7 +15,7 @@ source("../scripts/multinomial_probit_filter_ADF.R")
 source("../scripts/multinomial_probit_filter_exact.R")
 source("../scripts/multinomial_probit_gaussian_smoothing.R")
 source("../scripts/multinomial_probit_gaussian_smoothing.R")
-source("../scripts/multinomial_probit_EM.R")
+source("../scripts/multinomial_probit_EM_Sigma.R")
 
 library(ggplot2)
 library(tidyr)
@@ -39,7 +39,7 @@ p = p_X*L + p_Y
 
 expected_m_t = 15
 
-name_init="repeat_EM_p_"
+name_init="trace_repeat_EM_p_"
 
 output_name = sim_name(name_init, L, Time, p, expected_m_t)
 name_simulation = output_name$name
@@ -57,30 +57,30 @@ set.seed(678)
 beta_size = p + L
 
 a_0 = matrix(rep(0, beta_size), ncol = 1)
-P_0 = 1/p*diag(beta_size)
+P_0 = 1/beta_size*diag(beta_size)
 
-W = 0.05*diag(beta_size)
+alpha = 0.1
+G = alpha*P_0
+W = (1-alpha*alpha)*P_0
 
-G = 0.5*diag(beta_size)
-for(i in 2:beta_size)
-{
-  sign = sample(c(-1, 1), 1)
-  G[i,i-1] = sign*0.25
-  G[i-1,i] = sign*0.25
-}
-
-Sigma = 0.2*diag(L)
+Sigma = 0.5*diag(L)
 Sigma[1,1] = 0.5
 for(i in 2:L)
 {
   sign = sample(c(-1, 1), 1)
-  Sigma[i,i-1] = sign*0.1
-  Sigma[i-1,i] = sign*0.1
+  Sigma[i,i-1] = sign*0.2
+  Sigma[i-1,i] = sign*0.2
 }
+
+target_trace = L
+
+invSigma = solve(Sigma)
+invSigma = target_trace*invSigma/(sum(diag((invSigma))))
+Sigma_update = solve(invSigma)
 
 # GENERATE DATA
 
-parameters = list(a_0 = a_0, P_0 = L*P_0/sum(diag(Sigma)), G = G, W = L*W/sum(diag(Sigma)), Sigma = L*Sigma/sum(diag(Sigma)))
+parameters = list(a_0 = a_0, P_0 = P_0, G = G, W = W, Sigma = Sigma_update)
 
 hyperparameters = list(lambda_M = expected_m_t, N_max = 4*expected_m_t, Y_max = 20, prediction_bool= FALSE)
 
@@ -126,6 +126,16 @@ Sigma_repeated_sample  = array(NA, dim = c(n_samples, L, L))
 log_likelihood_history = array(NA, dim = c(n_samples, EM_iterations+1))
 log_likelihood_true    = array(NA, dim = c(n_samples))
 
+# Filter
+EP_max_iterations = 5
+MC_samples = 10000
+eps_sample_size = 10000
+tol = 10e-3
+EP_sampling_filter_to_use <- function(data, parameters)
+{
+  return(EP_sampling_filter(data, parameters, EP_max_iterations, MC_samples, tol))
+}
+
 for(i in 1:n_samples)
 {
   print(i)
@@ -136,12 +146,18 @@ for(i in 1:n_samples)
   
   data_multinomial_probit_next = simulator_given_covariates(data_multinomial_probit, parameters, hyperparameters, Time)
   
-  EM_output_EP = multinomial_probit_EM(data_multinomial_probit_next, EP_sampling_filter, initial_parameters,
-                                       EM_iterations,
-                                       learn_G, learn_W, learn_Sigma, type = "nonstd",
-                                       log = c(FALSE, NA))
+  # EM_output_EP = multinomial_probit_EM(data_multinomial_probit_next, EP_sampling_filter, initial_parameters,
+  #                                      EM_iterations,
+  #                                      learn_G, learn_W, learn_Sigma, type = "nonstd",
+  #                                      log = c(FALSE, NA))
   
-  EP_filter_output_truth   = EP_sampling_filter(data_multinomial_probit_next, parameters)
+  EM_output_EP = multinomial_probit_EM_invSigma(data_multinomial_probit_next, 
+                                                EP_sampling_filter_to_use, type = "nonstd",
+                                                initial_parameters, target_trace,
+                                                EM_iterations, eps_sample_size, 
+                                                log = c(FALSE, NA))
+  
+  EP_filter_output_truth   = EP_sampling_filter_to_use(data_multinomial_probit_next, parameters)
   
   # trace_Sigma = sum(diag(EM_output_EP$Sigma_history[EM_iterations+1,,]))
   # Sigma_repeated_sample[i,,] = L*EM_output_EP$Sigma_history[EM_iterations+1,,]/trace_Sigma
@@ -174,15 +190,18 @@ ggplot(df_long, aes(x = iteration, y = diff, group = id, color = 3)) +
   labs(x = "Time", y = "Value", title = "N Trajectories Over T Time Points") +
   theme_minimal()
 
-matrix_normalization <- function(Sigma)
-{
-  trace_Sigma = sum(diag(Sigma))
-  
-  return(L*Sigma/trace_Sigma)
-}
+# matrix_normalization <- function(Sigma)
+# {
+#   trace_Sigma = sum(diag(Sigma))
+#   
+#   return(Sigma)
+# }
 
-mean_Sigma = Reduce("+", lapply(seq(1, n_samples), function(i) matrix_normalization(Sigma_repeated_sample[i,,])))/n_samples
-sd_Sigma   = sqrt(Reduce("+", lapply(seq(1, n_samples), function(i) (matrix_normalization(Sigma_repeated_sample[i,,]) - mean_Sigma)^2))/n_samples)
+# mean_Sigma = Reduce("+", lapply(seq(1, n_samples), function(i) matrix_normalization(Sigma_repeated_sample[i,,])))/n_samples
+# sd_Sigma   = sqrt(Reduce("+", lapply(seq(1, n_samples), function(i) (matrix_normalization(Sigma_repeated_sample[i,,]) - mean_Sigma)^2))/n_samples)
+
+mean_Sigma = Reduce("+", lapply(seq(1, n_samples), function(i) Sigma_repeated_sample[i,,]))/n_samples
+sd_Sigma   = sqrt(Reduce("+", lapply(seq(1, n_samples), function(i) (Sigma_repeated_sample[i,,] - mean_Sigma)^2))/n_samples)
 
 parameters$Sigma
 
