@@ -25,6 +25,10 @@ library(tidyr)
 
 # LOAD DATA
 data_X = read.csv("../expedia_data/data_X.csv")
+data_X$prop_location_score1 = as.double(scale(data_X$prop_location_score1))
+data_X$log_price_usd = as.double(scale(data_X$log_price_usd))
+data_X$prop_starrating = as.double(scale(data_X$prop_starrating))
+
 data_Y = read.csv("../expedia_data/data_Y.csv")
 
 covariates_names = c( "prop_brand_bool",   
