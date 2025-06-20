@@ -24,12 +24,12 @@ library(dplyr)
 library(tidyr)
 
 # LOAD DATA
-data_X = read.csv("../expedia_data/data_X.csv")
+data_X = read.csv("../expedia_data/data_X25.csv")
 data_X$prop_location_score1 = as.double(scale(data_X$prop_location_score1))
 data_X$log_price_usd = as.double(scale(data_X$log_price_usd))
 data_X$prop_starrating = as.double(scale(data_X$prop_starrating))
 
-data_Y = read.csv("../expedia_data/data_Y.csv")
+data_Y = read.csv("../expedia_data/data_Y25.csv")
 
 covariates_names = c( "prop_brand_bool",   
                       "prop_location_score1",
@@ -37,7 +37,7 @@ covariates_names = c( "prop_brand_bool",
                       "log_price_usd",
                       "prop_starrating")
 
-L = 10
+L = 25
 t_0  = min(data_X$t)
 Time = max(data_X$t)
 
@@ -48,7 +48,7 @@ Y = list()
 
 set.seed(5)
 
-percent_search = 0.8
+percent_search = 0.05
 
 current_t = t_0
 for(i in 1:end)
