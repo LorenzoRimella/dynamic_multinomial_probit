@@ -136,12 +136,18 @@ storesToKeep <- names(sort(rowSums(A[valid_rows,]), decreasing = T))[1:10] # kee
 merged_data_L <- merged_data_L %>%
   filter(store %in% storesToKeep)
 
-table(merged_data_L$day)
+merged_data_L$t <- merged_data_L$day
+table(merged_data_L$t)
 
 
 ##########################
 # CREATE DATASETS
 ##########################
+merged_data_L$transID <- 1:nrow(merged_data_L)
+merged_data_L$t       <- merged_data_L$t - min(merged_data_L$t) + 1
+merged_data_L$brand   <- as.integer(factor(merged_data_L$brand, levels = categories)) - 1
+
+
 ####### TO DO: IMPROVE THIS PART
 merged_data_L$t[merged_data_L$t>160] <- merged_data_L$t[merged_data_L$t>160] - 1 # 161 was missing
 ##################
@@ -172,59 +178,73 @@ nearest_fill <- function(t, y) {
   out[order(o)]  # restore original order (not strictly needed here)
 }
 
-result <- panel %>%
+avg_log_prices_t_store_brand <- panel %>%
   left_join(daily_avg, by = c("t","store","brand")) %>%
   group_by(store, brand) %>%
   mutate(avg_log_oz_filled = nearest_fill(t, avg_log_oz)) %>%
   ungroup()
 
-sum(is.na(result$avg_log_oz_filled))
+sum(is.na(avg_log_prices_t_store_brand$avg_log_oz_filled))
 
-merged_data_L$transID <- 1:nrow(merged_data_L)
-merged_data_L$t       <- merged_data_L$day - min(merged_data_L$day) + 1
-merged_data_L$brand   <- as.integer(factor(merged_data_L$brand, levels = categories)) - 1
+
+Tmin  = min(merged_data_L$t)
+Tmax  = max(merged_data_L$t)
 
 data_Y         <- merged_data_L[,c("transID","t","brand")]
 data_X         <- merged_data_L[,c("transID","t","log_price_per_ounce","brand","store")]
 
-Tmin  = min(data_Y$t)
-Tmax  = max(data_Y$t)
+covariates_names <- c("log_price_per_ounce")
 
-for(i in 1:Tmax)
+X = list()
+Y = list()
+
+for(current_t in Tmin:Tmax)
 {
-  current_X = subset(data_X,    t == i)
-  current_Y = subset(data_Y, t == i)
+  current_X <- subset(data_X, t == current_t)
+  current_Y <- subset(data_Y, t == current_t)
+  
+  n_t <- nrow(current_X)
+  
+  # create design matrix for time t
+  X_array <- array(NA, dim = c(n_t, length(covariates_names)+L, L))
+
+  for (i in 1:n_t) {
+    choice_i                     <- current_Y$brand[i]
+    store_i                      <- current_X$store[i]
+    log_price_per_ounce_choice_i <- current_X$log_price_per_ounce[i]
+    
+    # create design matrix for individual i of time n_t
+    X_i <- double(L) # this is ok only if we have only one covariate (choice specific)
+    
+    if(choice_i == 0){
+      log_price_per_ounce_baseline <- current_X$log_price_per_ounce[i]
+    } else{
+      log_price_per_ounce_baseline <- avg_log_prices_t_store_brand[avg_log_prices_t_store_brand$t == current_t &
+                                                                     avg_log_prices_t_store_brand$store == store_i &
+                                                                     avg_log_prices_t_store_brand$brand == 0, ]$avg_log_oz_filled
+    }
+    
+    for (choice in 1:L) {
+      if(choice == choice_i){
+        log_price_per_ounce_i <- log_price_per_ounce_choice_i
+      } else{
+        log_price_per_ounce_i <- avg_log_prices_t_store_brand[avg_log_prices_t_store_brand$t == current_t &
+                                                                avg_log_prices_t_store_brand$store == store_i &
+                                                                avg_log_prices_t_store_brand$brand == choice_i, ]$avg_log_oz_filled
+      }
+      
+      X_i[choice] <- log_price_per_ounce_i - log_price_per_ounce_baseline
+    }
+    
+    X_array[i,,] = rbind(X_i,diag(L))
+    rbind(X_i,diag(L))
+    
+  }
+  
+  X[[current_t]] = X_array
+  Y[[current_t]] = current_Y$brand
   
 }
 
 
-# # get stores that have sold each product at least once every week
-# stores_ok <- merged_data_LL %>%
-#   distinct(store, week, brand) %>%
-#   group_by(store, week) %>%
-#   summarise(n_prod_sold = n_distinct(brand), .groups = "drop") %>%
-#   group_by(store) %>%
-#   summarise(
-#     weeks_covered = all(n_prod_sold >= n_distinct(merged_data_LL$brand) - 2 ),
-#     n_weeks = n_distinct(week),
-#     .groups = "drop"
-#   ) %>%
-#   filter(weeks_covered, n_weeks == n_distinct(merged_data_LL$week)) %>%
-#   pull(store)
-
-
-# # Apply to vector
-# ounces <- sapply(merged_data_L10$product_size, convert_to_oz)
-
-
-# merged_data_LM <- merged_data %>%
-#   filter(brand %in% c("Barilla", "Mueller", "Creamette", "Ronzoni", "San Giorgio", "No Yolks",
-#                       "Hodgson Mills", "Healthy Harvest", "DaVinci", "Dececco"))
-# 
-# dim(merged_data_LM)
-
-
-# merged_data_all <- data_transactions %>%
-#   left_join(data_products, by = "upc")
-# 
-# sort(table(merged_data_all$brand), decreasing = T)
+save(X,Y,file = "dataCarbo.RData")
