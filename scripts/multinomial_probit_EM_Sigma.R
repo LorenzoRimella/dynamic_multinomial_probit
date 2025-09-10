@@ -63,7 +63,9 @@ multinomial_probit_EM_invSigma <- function(data,
                                                     function(i) cov(t(eps_SUN_sample[[t]][[i]])) + (t(t(apply(eps_SUN_sample[[t]][[i]], 1, mean))) %*% t(apply(eps_SUN_sample[[t]][[i]], 1, mean)))))
 
     V = Reduce("+", lapply(seq(1, Time), function(t) Reduce("+", eps_second_moment[[t]])))
-
+    
+    upper_lim = min(eigen(V, only.values = T)$values)/2
+    
     # Function that returns A as a function of c
     A_func <- function(c) {
       return((1/sum_m_t) * (V - 2 * c * diag(dim(V)[1])))
@@ -85,8 +87,6 @@ multinomial_probit_EM_invSigma <- function(data,
     root_function <- function(c) {
       return(trace_inv_A(c) - target_trace)
     }
-    
-    upper_lim = min(eigen(V, only.values = T)$values)/2
     
     result <- uniroot(root_function, lower = -10e+10, upper = upper_lim)
     

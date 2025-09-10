@@ -54,7 +54,7 @@ log_Psi<- function(r_Psi, Q_Psi)
 
 # stabilize EP by convex combination alpha=0.999 (close to new update)
 
-site_i_update <- function(i, x_t, y_t, r, Q, logZ, parameters, MC_samples)
+site_i_update <- function(i, x_t, y_t, r, Q, logZ, parameters, MC_samples=1e4)
 {
   r_minus_i = t(t(apply(r[-i,], 2, sum)))
   Q_minus_i = apply(Q[-i,,], MARGIN = c(2,3), sum)
@@ -95,7 +95,7 @@ EP_log_likelihood_increments <- function(r, Q, logZ)
   return(log_likelihood_increment)
 }
 
-EP_sampling_correction <- function(x_t, y_t, a_t_tm1, P_t_tm1, parameters, EP_max_iterations, MC_samples, tol)
+EP_sampling_correction <- function(x_t, y_t, a_t_tm1, P_t_tm1, parameters, EP_max_iterations=1e3, MC_samples=1e4, tol)
 {
   L = dim(x_t)[3]
   m_t = dim(x_t)[1]
@@ -157,7 +157,7 @@ EP_sampling_correction <- function(x_t, y_t, a_t_tm1, P_t_tm1, parameters, EP_ma
 }
 
 
-EP_sampling_filter <- function(data, parameters, EP_max_iterations, MC_samples, tol = 10e-3)
+EP_sampling_filter <- function(data, parameters, EP_max_iterations=1e3, MC_samples=1e4, tol = 10e-3)
 {
   start_time <- Sys.time()
   L = dim(parameters$Sigma)[1]

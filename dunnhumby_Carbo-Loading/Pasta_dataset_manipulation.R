@@ -1,4 +1,8 @@
-rm(list = ls())
+rm(list=ls())
+# Set the directory to the path of the current script
+library(rstudioapi)
+setwd(dirname(rstudioapi::getSourceEditorContext()$path))
+
 # load the library
 library(dplyr)
 library(stringr)
@@ -17,7 +21,7 @@ table(data_products$commodity)
 pasta_subset <- data_products[data_products$commodity=="pasta",]
 
 # Select only the columns you want from df2 before joining
-pasta_subset <- pasta_subset %>% select(upc, brand, product_size)
+pasta_subset <- pasta_subset %>% dplyr::select(upc, brand, product_size)
 
 # Convert product size to ounces
 convert_to_oz <- function(x) {
@@ -230,7 +234,7 @@ for(current_t in Tmin:Tmax)
       } else{
         log_price_per_ounce_i <- avg_log_prices_t_store_brand[avg_log_prices_t_store_brand$t == current_t &
                                                                 avg_log_prices_t_store_brand$store == store_i &
-                                                                avg_log_prices_t_store_brand$brand == choice_i, ]$avg_log_oz_filled
+                                                                avg_log_prices_t_store_brand$brand == choice, ]$avg_log_oz_filled
       }
       
       X_i[choice] <- log_price_per_ounce_i - log_price_per_ounce_baseline
