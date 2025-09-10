@@ -41,14 +41,14 @@ L = 25
 t_0  = min(data_X$t)
 Time = max(data_X$t)
 
-end   = 3 #Time - t_0 + 1
+end   = 4 #Time - t_0 + 1
 
 X = list()
 Y = list()
 
 set.seed(5)
 
-percent_search = 0.05
+percent_search = 0.6
 
 current_t = t_0
 for(i in 1:end)
@@ -133,7 +133,7 @@ beta_size = p + L
 a_0 = matrix(rep(0, beta_size), ncol = 1)
 P_0 = 1/beta_size*diag(beta_size)
 
-c = 0.8
+c = 0.1
 G = c*P_0
 W = (1-c^2)*P_0
 
