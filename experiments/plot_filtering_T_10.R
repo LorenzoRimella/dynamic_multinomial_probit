@@ -1,7 +1,7 @@
 library(dplyr)
 library(ggplot2)
 
-load("/Users/augustofasano/Library/CloudStorage/Dropbox-CCA/Augusto Fasano/GitHub/dynamic_multinomial_probit/data/filt_smoot_lik_p_9_mt_10_L_3_Time_20/filt_smoot_lik_p_9_mt_10_L_3_Time_20_data.Rdata")
+load("data/filt_smoot_lik_p_9_mt_10_L_3_Time_20/filt_smoot_lik_p_9_mt_10_L_3_Time_20_data.Rdata")
 
 summary_table <- data_frame_output %>%
   group_by(type) %>%
@@ -22,11 +22,11 @@ summary_table <- data_frame_output %>%
 print(summary_table, row.names = FALSE)
 
 # plot trajectories
-load("/Users/augustofasano/Library/CloudStorage/Dropbox-CCA/Augusto Fasano/GitHub/dynamic_multinomial_probit/data/filt_smoot_lik_p_9_mt_10_L_3_Time_20/filt_smoot_lik_p_9_mt_10_L_3_Time_20_data_multinomial_probit.Rdata")
-load("/Users/augustofasano/Library/CloudStorage/Dropbox-CCA/Augusto Fasano/GitHub/dynamic_multinomial_probit/data/filt_smoot_lik_p_9_mt_10_L_3_Time_20/filt_smoot_lik_p_9_mt_10_L_3_Time_20_ADF_filter.Rdata")
-load("/Users/augustofasano/Library/CloudStorage/Dropbox-CCA/Augusto Fasano/GitHub/dynamic_multinomial_probit/data/filt_smoot_lik_p_9_mt_10_L_3_Time_20/filt_smoot_lik_p_9_mt_10_L_3_Time_20_EP_filter.Rdata")
-load("/Users/augustofasano/Library/CloudStorage/Dropbox-CCA/Augusto Fasano/GitHub/dynamic_multinomial_probit/data/filt_smoot_lik_p_9_mt_10_L_3_Time_20/filt_smoot_lik_p_9_mt_10_L_3_Time_20_SMC_filter.Rdata")
-load("/Users/augustofasano/Library/CloudStorage/Dropbox-CCA/Augusto Fasano/GitHub/dynamic_multinomial_probit/data/filt_smoot_lik_p_9_mt_10_L_3_Time_20/filt_smoot_lik_p_9_mt_10_L_3_Time_20_exact_filter.Rdata")
+load("data/filt_smoot_lik_p_9_mt_10_L_3_Time_20/filt_smoot_lik_p_9_mt_10_L_3_Time_20_data_multinomial_probit.Rdata")
+load("data/filt_smoot_lik_p_9_mt_10_L_3_Time_20/filt_smoot_lik_p_9_mt_10_L_3_Time_20_ADF_filter.Rdata")
+load("data/filt_smoot_lik_p_9_mt_10_L_3_Time_20/filt_smoot_lik_p_9_mt_10_L_3_Time_20_EP_filter.Rdata")
+load("data/filt_smoot_lik_p_9_mt_10_L_3_Time_20/filt_smoot_lik_p_9_mt_10_L_3_Time_20_SMC_filter.Rdata")
+load("data/filt_smoot_lik_p_9_mt_10_L_3_Time_20/filt_smoot_lik_p_9_mt_10_L_3_Time_20_exact_filter.Rdata")
 
 dim(data_multinomial_probit$X[[1]]) # n_obs x p x L
 t(data_multinomial_probit$X[[1]][1,,]) # design matrix for first individual at first time

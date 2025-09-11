@@ -24,12 +24,12 @@ library(dplyr)
 library(tidyr)
 
 # LOAD DATA
-data_X = read.csv("../expedia_data/data_X25.csv")
+data_X = read.csv("../expedia_data/data_X10_rand.csv")
 data_X$prop_location_score1 = as.double(scale(data_X$prop_location_score1))
 data_X$log_price_usd = as.double(scale(data_X$log_price_usd))
 data_X$prop_starrating = as.double(scale(data_X$prop_starrating))
 
-data_Y = read.csv("../expedia_data/data_Y25.csv")
+data_Y = read.csv("../expedia_data/data_Y10_rand.csv")
 
 covariates_names = c( "prop_brand_bool",   
                       "prop_location_score1",
@@ -37,18 +37,19 @@ covariates_names = c( "prop_brand_bool",
                       "log_price_usd",
                       "prop_starrating")
 
-L = 25
+L = 10
 t_0  = min(data_X$t)
 Time = max(data_X$t)
 
-end   = 3 #Time - t_0 + 1
+end   = 50 #Time - t_0 + 1
 
 X = list()
 Y = list()
 
 set.seed(5)
 
-percent_search = 0.05
+percent_search = 1
+# percent_search = 0.6
 
 current_t = t_0
 for(i in 1:end)
@@ -133,14 +134,18 @@ beta_size = p + L
 a_0 = matrix(rep(0, beta_size), ncol = 1)
 P_0 = 1/beta_size*diag(beta_size)
 
-c = 0.8
-G = c*P_0
+c = 0.4
+G = c*diag(dim(P_0)[1])
+
+# c = 0.1
+# G = c*P_0
+  
 W = (1-c^2)*P_0
 
 # the invariant distr is N(0,P_0)
 
 Sigma = diag(L)
-target_trace = L
+target_trace = L*L
 # = 1/L comput singular system
 # = L big values
 # = 5*L big values
@@ -203,9 +208,22 @@ EM_output_EP = multinomial_probit_EM_invSigma(data_multinomial_probit,
                                               EM_iterations, eps_sample_size, 
                                               log = list(TRUE, c(directory_name, name_simulation)))
 
-plot(EM_output_EP$log_likelihood_history)
+plot(EM_output_EP$Sigma_history[,1,1], type = "l")
+for(j in 2:10)
+{
+  lines(EM_output_EP$Sigma_history[,1,j])
+}
+for(i in 2:10)
+{
+  for(j in i:10)
+  {
+    lines(EM_output_EP$Sigma_history[,i,j])
+  }
+}
+  
+plot(EM_output_EP$log_likelihood_history[100:200])
 
-save(EM_output_EP,           file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_EP_EM.Rdata"))
+save(EM_output_EP,           file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_EP_EM_LL_lower.Rdata"))
 
 Trace_EM = sum(diag(EM_output_ADF$Sigma_history[EM_iterations+1,,]))
 EM_parameters = list(a_0 = a_0, P_0 = P_0/Trace_EM, 
