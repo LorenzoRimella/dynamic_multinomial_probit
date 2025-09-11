@@ -139,7 +139,7 @@ G = c*diag(dim(P_0)[1])
 
 # c = 0.1
 # G = c*P_0
-  
+
 W = (1-c^2)*P_0
 
 # the invariant distr is N(0,P_0)
