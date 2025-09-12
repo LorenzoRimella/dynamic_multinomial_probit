@@ -1,8 +1,9 @@
 library(dplyr)
 library(ggplot2)
 
-load("/Users/augustofasano/Library/CloudStorage/Dropbox-CCA/Augusto Fasano/GitHub/dynamic_multinomial_probit/data/filt_smoot_lik_p_9_mt_50_L_3_Time_50/filt_smoot_lik_p_9_mt_50_L_3_Time_50_data.Rdata")
+load("data/filt_smoot_lik_p_9_mt_50_L_3_Time_50/filt_smoot_lik_p_9_mt_50_L_3_Time_50_data.Rdata")
 
+# Compute mean and standard deviation for each type
 summary_table <- data_frame_output %>%
   group_by(type) %>%
   summarise(across(
@@ -22,11 +23,11 @@ summary_table <- data_frame_output %>%
 print(summary_table, row.names = FALSE)
 
 # plot trajectories
-load("/Users/augustofasano/Library/CloudStorage/Dropbox-CCA/Augusto Fasano/GitHub/dynamic_multinomial_probit/data/filt_smoot_lik_p_9_mt_50_L_3_Time_50/filt_smoot_lik_p_9_mt_50_L_3_Time_50_data_multinomial_probit.Rdata")
-load("/Users/augustofasano/Library/CloudStorage/Dropbox-CCA/Augusto Fasano/GitHub/dynamic_multinomial_probit/data/filt_smoot_lik_p_9_mt_50_L_3_Time_50/filt_smoot_lik_p_9_mt_50_L_3_Time_50_ADF_filter.Rdata")
-load("/Users/augustofasano/Library/CloudStorage/Dropbox-CCA/Augusto Fasano/GitHub/dynamic_multinomial_probit/data/filt_smoot_lik_p_9_mt_50_L_3_Time_50/filt_smoot_lik_p_9_mt_50_L_3_Time_50_EP_filter.Rdata")
-load("/Users/augustofasano/Library/CloudStorage/Dropbox-CCA/Augusto Fasano/GitHub/dynamic_multinomial_probit/data/filt_smoot_lik_p_9_mt_50_L_3_Time_50/filt_smoot_lik_p_9_mt_50_L_3_Time_50_SMC_filter.Rdata")
-load("/Users/augustofasano/Library/CloudStorage/Dropbox-CCA/Augusto Fasano/GitHub/dynamic_multinomial_probit/data/filt_smoot_lik_p_9_mt_50_L_3_Time_50/filt_smoot_lik_p_9_mt_50_L_3_Time_50_exact_filter.Rdata")
+load("data/filt_smoot_lik_p_9_mt_50_L_3_Time_50/filt_smoot_lik_p_9_mt_50_L_3_Time_50_data_multinomial_probit.Rdata")
+load("data/filt_smoot_lik_p_9_mt_50_L_3_Time_50/filt_smoot_lik_p_9_mt_50_L_3_Time_50_ADF_filter.Rdata")
+load("data/filt_smoot_lik_p_9_mt_50_L_3_Time_50/filt_smoot_lik_p_9_mt_50_L_3_Time_50_EP_filter.Rdata")
+load("data/filt_smoot_lik_p_9_mt_50_L_3_Time_50/filt_smoot_lik_p_9_mt_50_L_3_Time_50_SMC_filter.Rdata")
+load("data/filt_smoot_lik_p_9_mt_50_L_3_Time_50/filt_smoot_lik_p_9_mt_50_L_3_Time_50_exact_filter.Rdata")
 
 dim(data_multinomial_probit$X[[1]]) # n_obs x p x L
 t(data_multinomial_probit$X[[1]][1,,]) # design matrix for first individual at first time

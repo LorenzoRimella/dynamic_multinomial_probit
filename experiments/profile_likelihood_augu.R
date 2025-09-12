@@ -151,8 +151,8 @@ Sigma_comp <- function(a,b)
 
 Sigma_comp("a", "b")
 
-a_grid = seq(-1, 1, length = 9) # seq(-1, 1, length = 100) 
-b_grid = seq(-1, 1, length = 9) # seq(-1, 1, length = 100) 
+a_grid = seq(-1, 1, length = 10) # seq(-1, 1, length = 100) 
+b_grid = seq(-1, 1, length = 10) # seq(-1, 1, length = 100) 
 
 parameters_temp = parameters
 
