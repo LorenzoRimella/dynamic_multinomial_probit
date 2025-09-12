@@ -16,8 +16,9 @@ library(gridExtra)
 load("dataCarbo.RData")
 
 # shorten X and Y (to be removed)
-X <- head(X,30)
-Y <- head(Y,30)
+TimeEnd <- 10
+X <- head(X,TimeEnd)
+Y <- head(Y,TimeEnd)
 
 L = 5
 
@@ -67,7 +68,7 @@ ggplot(df_y, aes(x = Time, y = Count, fill = Category)) +
 
 
 # EM algorithm
-EM_iterations = 200
+EM_iterations = 1000
 learn_G = F
 learn_W = F
 learn_Sigma = TRUE
@@ -104,3 +105,4 @@ EM_output <- multinomial_probit_EM_invSigma(data = data_multinomial_probit,
                                             EM_iterations = EM_iterations,
                                             eps_sample_size = 1e4)
 
+save(EM_output, file = "CarboLoading_EM_output_T10_1000.RData")
