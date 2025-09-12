@@ -16,7 +16,7 @@ library(gridExtra)
 load("dataCarbo.RData")
 
 # shorten X and Y (to be removed)
-TimeEnd <- 10
+TimeEnd <- 30
 X <- head(X,TimeEnd)
 Y <- head(Y,TimeEnd)
 
@@ -38,11 +38,21 @@ L = 5
 
 beta_size = p + L
 
-a_0 = matrix(rep(0, beta_size), ncol = 1)
-P_0 = 3*diag(beta_size)
+# a_0 = matrix(rep(0, beta_size), ncol = 1)
+# P_0 = 3*diag(beta_size)
+# 
+# G = 0.9*diag(beta_size)
+# W = 0.05*diag(beta_size)
 
-G = 0.9*diag(beta_size)
-W = 0.05*diag(beta_size)
+a_0 = matrix(rep(0, beta_size), ncol = 1)
+P_0 = 3*diag(beta_size) # 1/beta_size*diag(beta_size)
+
+c = 0.2
+G = c*diag(dim(P_0)[1])
+
+W = (1-c^2)*P_0
+
+
 Sigma = diag(L)
 
 data_multinomial_probit = list(X = X, Y = Y)
@@ -105,4 +115,4 @@ EM_output <- multinomial_probit_EM_invSigma(data = data_multinomial_probit,
                                             EM_iterations = EM_iterations,
                                             eps_sample_size = 1e4)
 
-save(EM_output, file = "CarboLoading_EM_output_T10_1000.RData")
+save(EM_output, file = "CarboLoading_EM_output_T30_1000.RData")
