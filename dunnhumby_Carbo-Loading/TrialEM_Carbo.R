@@ -41,8 +41,9 @@ beta_size = p + L
 a_0 = matrix(rep(0, beta_size), ncol = 1)
 P_0 = 3*diag(beta_size)
 
-G = 0.9*diag(beta_size)
-W = 0.05*diag(beta_size)
+c = 0.9
+G = c*diag(beta_size)
+W = (1-c^2)*P_0
 Sigma = diag(L)
 
 data_multinomial_probit = list(X = X, Y = Y)
