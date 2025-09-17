@@ -45,9 +45,11 @@ beta_size = p + L
 # W = 0.05*diag(beta_size)
 
 a_0 = matrix(rep(0, beta_size), ncol = 1)
+
 P_0 =   1/(beta_size)*diag(beta_size) # 3*diag(beta_size) # 1/(beta_size)*diag(beta_size)
 
 c = 0.95
+
 G = c*diag(dim(P_0)[1])
 
 W = (1-c^2)*P_0
@@ -79,6 +81,7 @@ ggplot(df_y, aes(x = Time, y = Count, fill = Category)) +
 
 # EM algorithm
 EM_iterations = 500
+
 learn_G = F
 learn_W = F
 learn_Sigma = TRUE
@@ -117,6 +120,7 @@ if (!dir.exists(directory_name)) {
 }
 
 cat(P_0[1,1])
+
 
 EM_output <- multinomial_probit_EM_invSigma(data = data_multinomial_probit,
                                             filter = EP_sampling_filter,

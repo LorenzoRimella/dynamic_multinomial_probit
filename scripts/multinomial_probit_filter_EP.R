@@ -206,3 +206,29 @@ EP_sampling_filter <- function(data, parameters, EP_max_iterations=1e3, MC_sampl
               sampling_history = sampling_history,
               running_time = as.numeric(Sys.time() - start_time, units = "secs")))
 }
+
+EP_predictive <- function(data, parameters, EP_output, MC_samples)
+{
+  L = dim(parameters$Sigma)[1]
+  Time = dim(EP_output$a_history)[1]-1
+  
+  V_minus_pre_computed = lapply(seq(0, L), function(i) V_minus_l(i,L))
+  
+  single_t <- function(t)
+  {
+    # print(t)
+    EP_prediction_parameters = ADF_prediction(EP_output$a_history[t,], EP_output$P_history[t,,], parameters)
+    
+    sample_beta_t_tm1 = mvtnorm::rmvnorm(n = MC_samples, mean = EP_prediction_parameters$a_t_tm1, sigma = EP_prediction_parameters$P_t_tm1)
+    
+    
+    x_t = data$X[[t]]
+    
+    utility_i <- function(i) t(t(x_t[i,,]) %*% t(sample_beta_t_tm1)) + mvtnorm::rmvnorm(n = MC_samples, mean = t(t(rep(0, L))), sigma = parameters$Sigma)
+    
+    return(t(sapply(seq(1, dim(x_t)[1]), function(i) as.numeric(table(factor(apply(cbind(rep(0, L), utility_i(i)), 1, which.max), levels = 1:L)))/MC_samples)))
+  }
+  
+  return(lapply(seq(1, Time), single_t))
+}
+
