@@ -45,9 +45,9 @@ beta_size = p + L
 # W = 0.05*diag(beta_size)
 
 a_0 = matrix(rep(0, beta_size), ncol = 1)
-P_0 = 3*diag(beta_size) # 1/beta_size*diag(beta_size)
+P_0 =   1/(beta_size)*diag(beta_size) # 3*diag(beta_size) # 1/(beta_size)*diag(beta_size)
 
-c = 0.2
+c = 0.95
 G = c*diag(dim(P_0)[1])
 
 W = (1-c^2)*P_0
@@ -78,7 +78,7 @@ ggplot(df_y, aes(x = Time, y = Count, fill = Category)) +
 
 
 # EM algorithm
-EM_iterations = 1000
+EM_iterations = 500
 learn_G = F
 learn_W = F
 learn_Sigma = TRUE
@@ -107,12 +107,24 @@ initial_parameters = list(a_0 = a_0,
 
 set.seed(5)
 
+output_name = sim_name(paste("CarboLoading_c_",c,"P_0_",round(P_0[1,1],2), sep = ""), L, TimeEnd, beta_size, 100)
+name_simulation = output_name$name
+directory_name  = paste("../data/", output_name$name_for_dir, sep ="")
+
+# Create the directory if needed
+if (!dir.exists(directory_name)) {
+  dir.create(directory_name)
+}
+
+cat(P_0[1,1])
+
 EM_output <- multinomial_probit_EM_invSigma(data = data_multinomial_probit,
                                             filter = EP_sampling_filter,
                                             type = "nonstd",
                                             initial_parameters = initial_parameters,
                                             target_trace = L,
                                             EM_iterations = EM_iterations,
-                                            eps_sample_size = 1e4)
+                                            eps_sample_size = 1e4,
+                                            log = list(TRUE, c(directory_name, name_simulation)))
 
-save(EM_output, file = "CarboLoading_EM_output_T30_1000.RData")
+save(EM_output,P_0,c, file = "CarboLoading_EM_output_T30_500_P0_inv_c_095.RData")
