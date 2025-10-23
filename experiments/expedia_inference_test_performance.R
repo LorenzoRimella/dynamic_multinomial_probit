@@ -48,7 +48,7 @@ Y = list()
 
 set.seed(5)
 
-percent_search = 1
+percent_search = 0.5
 
 current_t = t_0
 for(i in 1:end)

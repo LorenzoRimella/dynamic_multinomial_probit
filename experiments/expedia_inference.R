@@ -10,7 +10,7 @@ source("../scripts/multinomial_probit_filter_SMC.R")
 source("../scripts/multinomial_probit_filter_ADF.R")
 source("../scripts/multinomial_probit_filter_exact.R")
 source("../scripts/multinomial_probit_gaussian_smoothing.R")
-source("../scripts/multinomial_probit_EM_Sigma.R")
+source("../DMP_cineca/scripts/multinomial_probit_EM_Sigma.R")
 
 library(ggplot2)
 library(tidyr)
@@ -24,12 +24,12 @@ library(dplyr)
 library(tidyr)
 
 # LOAD DATA
-data_X = read.csv("../expedia_data/data_X10_rand.csv")
-data_X$prop_location_score1 = as.double(scale(data_X$prop_location_score1))
-data_X$log_price_usd = as.double(scale(data_X$log_price_usd))
-data_X$prop_starrating = as.double(scale(data_X$prop_starrating))
+data_X = read.csv("../expedia_data/data_X.csv")
+#data_X$prop_location_score1 = as.double(scale(data_X$prop_location_score1))
+#data_X$log_price_usd = as.double(scale(data_X$log_price_usd))
+#data_X$prop_starrating = as.double(scale(data_X$prop_starrating))
 
-data_Y = read.csv("../expedia_data/data_Y10_rand.csv")
+data_Y = read.csv("../expedia_data/data_Y.csv")
 
 covariates_names = c( "prop_brand_bool",   
                       "prop_location_score1",
@@ -48,8 +48,7 @@ Y = list()
 
 set.seed(5)
 
-percent_search = 1
-# percent_search = 0.6
+percent_search = 0.05
 
 current_t = t_0
 for(i in 1:end)
@@ -93,7 +92,7 @@ Time= length(X)
 
 p = dim(X[[1]])[2]-L # number of subject dependent covariate
 
-name_init="inference_expedia_EP_p_"
+name_init="inference_expedia_EP_bigP0bigSigma_p_"
 
 expected_m_t = mean(sapply(seq(1,length(X)), function(i) return(dim(X[[i]])[1])))
 
@@ -132,41 +131,28 @@ ggplot(df_y, aes(x = Time, y = Count, fill = Category)) +
 beta_size = p + L
 
 a_0 = matrix(rep(0, beta_size), ncol = 1)
-P_0 = 1/beta_size*diag(beta_size)
+P_0 = diag(beta_size)
 
-c = 0.4
-G = c*diag(dim(P_0)[1])
+alpha = 0.95
+G = alpha*diag(beta_size)
 
-# c = 0.1
-# G = c*P_0
-
-W = (1-c^2)*P_0
+W = (1-alpha*alpha)*P_0
 
 # the invariant distr is N(0,P_0)
 
 Sigma = diag(L)
-target_trace = L*L
-# = 1/L comput singular system
-# = L big values
-# = 5*L big values
-# = 1 still exploding values
-# = L*L valori intermedi
-
-invSigma = solve(Sigma)
-invSigma = target_trace*invSigma/(sum(diag((invSigma))))
-Sigma_update = solve(invSigma)
 
 initial_parameters = list(a_0 = a_0,
                           P_0 = P_0,
                           G   = G,
                           W   = W,
-                          Sigma = Sigma_update)
+                          Sigma = Sigma)
 
 # Check mean variance of the fixed effect
 Sigma_cumul = initial_parameters$P_0
 sum_var     = array(0, dim= c(L,L))
 elem = 0 
-for(t in 1:Time)
+for(t in 1:10)
 {
   Sigma_cumul = initial_parameters$G%*%Sigma_cumul%*%t(initial_parameters$G) + initial_parameters$W
   
@@ -201,12 +187,17 @@ EP_sampling_filter_to_use <- function(data, parameters)
 # EM algorithm
 EM_iterations = 100
 
-
-EM_output_EP = multinomial_probit_EM_invSigma(data_multinomial_probit, 
-                                              EP_sampling_filter_to_use, type = "nonstd",
-                                              initial_parameters, target_trace,
-                                              EM_iterations, eps_sample_size, 
-                                              log = list(TRUE, c(directory_name, name_simulation)))
+# EM_output_EP = multinomial_probit_EM_Sigma_G( data_multinomial_probit, 
+#                                             EP_sampling_filter_to_use, type = "nonstd",
+#                                             initial_parameters,
+#                                             EM_iterations, eps_sample_size, 
+#                                             log = c(TRUE, name_simulation))
+# 
+EM_output_EP = multinomial_probit_EM_Sigma( data_multinomial_probit,
+                                            EP_sampling_filter_to_use, type = "nonstd",
+                                            initial_parameters,
+                                            EM_iterations, eps_sample_size,
+                                            log = c(TRUE, name_simulation))
 
 plot(EM_output_EP$Sigma_history[,1,1], type = "l")
 for(j in 2:10)
