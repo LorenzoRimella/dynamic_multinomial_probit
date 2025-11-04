@@ -46,16 +46,19 @@ beta_size = p + L
 
 a_0 = matrix(rep(0, beta_size), ncol = 1)
 
-P_0 =  0.5*diag(beta_size) # 1/(beta_size)*diag(beta_size) # 3*diag(beta_size) # 1/(beta_size)*diag(beta_size)
+P_0 =  diag(beta_size) # 1/(beta_size)*diag(beta_size) # 3*diag(beta_size) # 1/(beta_size)*diag(beta_size)
 
 c = 0.8
 
 G = c*diag(dim(P_0)[1])
 
-W = 0.01 # (1-c^2)*P_0
+W = (1-c^2)*P_0 # 0.01
 
 
-Sigma = diag(L)
+Sigma = matrix(0.5,L,L)
+diag(Sigma) = 1
+
+# Sigma = diag(L)
 
 data_multinomial_probit = list(X = X, Y = Y)
 
@@ -80,7 +83,7 @@ ggplot(df_y, aes(x = Time, y = Count, fill = Category)) +
 
 
 # EM algorithm
-EM_iterations = 500
+EM_iterations = 100
 
 learn_G = F
 learn_W = F
@@ -90,7 +93,7 @@ initial_parameters = list(a_0 = a_0,
                           P_0 = P_0,
                           G = G,
                           W = W,
-                          Sigma = diag(L))
+                          Sigma = Sigma)
 
 # EM_output = multinomial_probit_EM(data_multinomial_probit, EP_sampling_filter, initial_parameters, 
 #                                   EM_iterations,
@@ -122,7 +125,17 @@ if (!dir.exists(directory_name)) {
 cat(P_0[1,1])
 
 
-EM_output <- multinomial_probit_EM_invSigma(data = data_multinomial_probit,
+# EM_output <- multinomial_probit_EM_invSigma(data = data_multinomial_probit,
+#                                             filter = EP_sampling_filter,
+#                                             type = "nonstd",
+#                                             initial_parameters = initial_parameters,
+#                                             target_trace = L,
+#                                             EM_iterations = EM_iterations,
+#                                             eps_sample_size = 1e4,
+#                                             log = list(TRUE, c(directory_name, name_simulation)))
+
+
+EM_output <- multinomial_probit_EM_Sigma(data = data_multinomial_probit,
                                             filter = EP_sampling_filter,
                                             type = "nonstd",
                                             initial_parameters = initial_parameters,
@@ -131,4 +144,4 @@ EM_output <- multinomial_probit_EM_invSigma(data = data_multinomial_probit,
                                             eps_sample_size = 1e4,
                                             log = list(TRUE, c(directory_name, name_simulation)))
 
-save(EM_output,P_0,c, file = "CarboLoading_EM_output_T10_500_P0_05_c_09_W_005.RData")
+# save(EM_output,P_0,c, file = "CarboLoading_EM_output_T10_500_P0_05_c_09_W_005.RData")

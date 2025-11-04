@@ -1,4 +1,4 @@
-load("CarboLoading_EM_output_T30_200.RData")
+# load("CarboLoading_EM_output_T30_200.RData")
 
 plot(EM_output$log_likelihood_history, type = "l")
 
@@ -45,3 +45,4 @@ plot_lower_tri_trajectories <- function(A, include_diag = FALSE) {
 }
 
 plot_lower_tri_trajectories(EM_output$Sigma_history, include_diag = T)
+
