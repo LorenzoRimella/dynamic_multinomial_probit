@@ -146,7 +146,7 @@ results <- future_lapply(1:n_replicates, function(repl) {
   )
   
   
-  return(list(df_EP, df_ADF, df_SMC, df_exact))
+  return(list(df_EP, df_ADF, df_SMC))
 }, future.seed=TRUE)
 
 data_frame_output <- do.call(rbind, unlist(results, recursive = FALSE))

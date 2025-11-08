@@ -141,5 +141,6 @@ for(i in 1:n_samples)
 }
 
 save(Sigma_repeated_sample,  file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_Sigma_repeated_sample.Rdata"))
+save(G_repeated_sample,  file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_G_repeated_sample.Rdata"))
 save(log_likelihood_history, file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_log_likelihood_history.Rdata"))
 save(log_likelihood_true,    file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_log_likelihood_true.Rdata"))

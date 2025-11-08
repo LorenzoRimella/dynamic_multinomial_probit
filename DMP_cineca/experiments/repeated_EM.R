@@ -21,16 +21,12 @@ source("../scripts/multinomial_probit_gaussian_smoothing.R")
 source("../scripts/multinomial_probit_gaussian_smoothing.R")
 source("../scripts/multinomial_probit_EM_Sigma.R")
 
-library(ggplot2)
 library(tidyr)
 library(dplyr)
+library(gridExtra)
 library(transport)
 library(expm) # for sqrtm (matrix square root)
 library(future.apply)
-
-library(dplyr)
-library(tidyr)
-
 
 # SET UP THE SIMULATION
 L = 3 # number of choices
@@ -96,10 +92,7 @@ Y_cov = matrix(runif(hyperparameters$Y_max*p_Y, -0.5, 0.5), nrow = hyperparamete
 data_multinomial_probit = simulator(X_cov, Y_cov, parameters, hyperparameters, Time)
 
 # EM algorithm
-EM_iterations = 100
-learn_G = FALSE
-learn_W = FALSE
-learn_Sigma = TRUE
+EM_iterations = 200
 
 n_samples = 50
 

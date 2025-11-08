@@ -14,4 +14,4 @@
 module load profile/bioinf
 module load autoload r
 
-Rscript DMP_cineca/experiments/repeated_EM_Sigma_unc.R
+Rscript DMP_cineca/experiments/repeated_EM.R

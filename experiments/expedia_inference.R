@@ -133,7 +133,7 @@ beta_size = p + L
 a_0 = matrix(rep(0, beta_size), ncol = 1)
 P_0 = diag(beta_size)
 
-alpha = 0.95
+alpha = 0.5
 G = alpha*diag(beta_size)
 
 W = (1-alpha*alpha)*P_0
@@ -193,9 +193,11 @@ EM_iterations = 100
 #                                             EM_iterations, eps_sample_size, 
 #                                             log = c(TRUE, name_simulation))
 # 
+
+target_trace = L
 EM_output_EP = multinomial_probit_EM_Sigma( data_multinomial_probit,
                                             EP_sampling_filter_to_use, type = "nonstd",
-                                            initial_parameters,
+                                            initial_parameters, target_trace,
                                             EM_iterations, eps_sample_size,
                                             log = c(TRUE, name_simulation))
 

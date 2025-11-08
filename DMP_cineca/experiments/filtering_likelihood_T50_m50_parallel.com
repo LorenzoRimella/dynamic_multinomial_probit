@@ -1,5 +1,4 @@
 #!/bin/bash
-
 #SBATCH --job-name=filtering_likelihood_T50_m50_parallel
 #SBATCH --time=72:00:00                   # Maximum wall time (hh:mm:ss)
 #SBATCH --nodes=1                         # Request one node

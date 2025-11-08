@@ -35,7 +35,7 @@ library(tidyr)
 
 # SET UP THE SIMULATION
 L = 3 # number of choices
-Time= 10 # number of time steps
+Time= 30 # number of time steps
 
 p_X = 2 # number of subject dependent covariates
 p_Y = 3 # number of choice dependent covariates
@@ -43,7 +43,7 @@ p = p_X*L + p_Y
 
 expected_m_t = 15
 
-name_init="parallel_Sigma_unconstrained_repeat_EM_p_"
+name_init="parallel_Sigma_trace_AGL_repeat_EM_p_"
 
 output_name = sim_name(name_init, L, Time, p, expected_m_t)
 name_simulation = output_name$name
@@ -68,7 +68,10 @@ G = alpha*diag(beta_size)
 
 W = (1-alpha*alpha)*P_0
 
-Sigma = 0.2*diag(L)
+Sigma = diag(L)
+Sigma[1,1] = 1.6
+Sigma[2,2] = 0.2
+Sigma[3,3] = 1.2
 for(i in 2:L)
 {
   sign = sample(c(-1, 1), 1)
@@ -88,9 +91,9 @@ Y_cov = matrix(runif(hyperparameters$Y_max*p_Y, -0.5, 0.5), nrow = hyperparamete
 data_multinomial_probit = simulator(X_cov, Y_cov, parameters, hyperparameters, Time)
 
 # EM algorithm
-EM_iterations = 2
+EM_iterations = 200
 
-n_samples = 4
+n_samples = 48
 
 Sigma_repeated_sample  = array(NA, dim = c(n_samples, L, L))
 log_likelihood_history = array(NA, dim = c(n_samples, EM_iterations+1))
@@ -101,6 +104,8 @@ EP_max_iterations = 5
 MC_samples = 10000
 eps_sample_size = 10000
 tol = 10e-3
+target_trace = L
+
 EP_sampling_filter_to_use <- function(data, parameters)
 {
   return(EP_sampling_filter(data, parameters, EP_max_iterations, MC_samples, tol))
@@ -121,7 +126,7 @@ plan(multisession, workers = slurm_cpus)
 
 results <- future_lapply(1:n_samples, function(i) {
     
-  set.seed(12345+i)
+  set.seed(678+i)
   print(i)
   
   initial_parameters = list(a_0 = parameters$a_0, P_0 = parameters$P_0, 
@@ -133,7 +138,7 @@ results <- future_lapply(1:n_samples, function(i) {
   
   EM_output_EP = multinomial_probit_EM_Sigma(data_multinomial_probit_next, 
                                                 EP_sampling_filter_to_use, type = "nonstd",
-                                                initial_parameters,
+                                                initial_parameters, target_trace,
                                                 EM_iterations, eps_sample_size, 
                                                 log = c(FALSE, NA))
   
