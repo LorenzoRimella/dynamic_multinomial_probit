@@ -28,13 +28,17 @@ G = alpha*diag(beta_size)
 
 W = (1-alpha*alpha)*P_0
 
-Sigma = 0.2*diag(L)
+Sigma = diag(L)
+Sigma[1,1] = 1.6
+Sigma[2,2] = 0.2
+Sigma[3,3] = 1.2
 for(i in 2:L)
 {
   sign = sample(c(-1, 1), 1)
   Sigma[i,i-1] = sign*0.1
   Sigma[i-1,i] = sign*0.1
 }
+
 
 # invSigma = solve(Sigma)
 
@@ -51,8 +55,8 @@ listing = c(10, 30, 60)
 for(i in 1:3)
 {
   Time = listing[i]
-  string = paste("DMP_cineca/data/parallel_next1_Sigma_unconstrained_repeat_EM_p_9_mt_15_L_3_Time_", Time, sep = "")
-  string = paste(string, "/parallel_next1_Sigma_unconstrained_repeat_EM_p_9_mt_15_L_3_Time_" ,sep = "")
+  string = paste("DMP_cineca/data/parallel_Sigma_trace_AGL_repeat_EM_p_9_mt_15_L_3_Time_", Time, sep = "")
+  string = paste(string, "/parallel_Sigma_trace_AGL_repeat_EM_p_9_mt_15_L_3_Time_" ,sep = "")
   string = paste(string, Time ,sep = "")
   
   load(paste(string, "_log_likelihood_history.Rdata",sep = ""))

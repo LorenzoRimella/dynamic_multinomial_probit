@@ -179,13 +179,15 @@ MC_samples = 10000
 eps_sample_size = 10000
 tol = 10e-3
 
+target_trace = L
+
 EP_sampling_filter_to_use <- function(data, parameters)
 {
   return(EP_sampling_filter(data, parameters, EP_max_iterations, MC_samples, tol))
 }
 
 # EM algorithm
-EM_iterations = 100
+EM_iterations = 200
 
 # EM_output_EP = multinomial_probit_EM_Sigma_G( data_multinomial_probit, 
 #                                             EP_sampling_filter_to_use, type = "nonstd",
@@ -194,7 +196,6 @@ EM_iterations = 100
 #                                             log = c(TRUE, name_simulation))
 # 
 
-target_trace = L
 EM_output_EP = multinomial_probit_EM_Sigma( data_multinomial_probit,
                                             EP_sampling_filter_to_use, type = "nonstd",
                                             initial_parameters, target_trace,
