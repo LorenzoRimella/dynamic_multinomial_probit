@@ -119,8 +119,11 @@ result <- data.frame(
   Sigma_value = round(vec3,2)
 )
 
+
+library(xtable)
+
 print(result)
-# xtable(result)
+xtable(result)
 
 # optional: filter only lower diagonal part of Sigma
 indeces <- c(1,2,5,3,6,9)
@@ -209,7 +212,7 @@ points_df <- df_long %>%
   )
 
 # --- Step 3: Plot ---
-ggplot(df_long) +
+ggem = ggplot(df_long) +
   # Segments for intervals
   geom_segment(
     aes(
@@ -218,7 +221,7 @@ ggplot(df_long) +
       yend = id + as.numeric(level)/100 - 0.2,
       color = level
     ),
-    size = 1.5
+    linewidth = 1.5
   ) +
   
   # Points for estimated mean and true value
@@ -256,3 +259,5 @@ ggplot(df_long) +
   ) +
   scale_y_continuous(breaks = df$id, labels = y_labels)
 
+
+ggsave("em_repeated.png", plot = ggem, width = 10, height = 6, dpi = 300, units = "in")

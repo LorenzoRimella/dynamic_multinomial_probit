@@ -38,9 +38,9 @@ data_X$prop_starrating = as.double(scale(data_X$prop_starrating))
 
 data_Y = read.csv("../data/data_Y10_rand.csv")
 
-covariates_names = c( "prop_brand_bool",   
+covariates_names = c( #"prop_brand_bool",   
                       "prop_location_score1",
-                      "promotion_flag",
+                      #"promotion_flag",
                       "log_price_usd",
                       "prop_starrating")
 
@@ -97,9 +97,12 @@ for(i in 1:end)
 # NAME SIMULATION
 Time= length(X)
 
+alpha_num = 0.99
+
 p = dim(X[[1]])[2]-L # number of subject dependent covariate
 
-name_init="inference_expedia_EP_p_"
+name_init = paste("inference_expedia_alpha_", alpha_num, sep="")
+name_init = paste(name_init, "_EP_p_", sep="")
 
 expected_m_t = mean(sapply(seq(1,length(X)), function(i) return(dim(X[[i]])[1])))
 
@@ -122,10 +125,9 @@ beta_size = p + L
 a_0 = matrix(rep(0, beta_size), ncol = 1)
 P_0 = diag(beta_size)
 
-alpha = 0.5
-G = alpha*diag(beta_size)
+G = alpha_num*diag(beta_size)
 
-W = (1-alpha*alpha)*P_0
+W = (1-alpha_num*alpha_num)*P_0
 
 # the invariant distr is N(0,P_0)
 
@@ -151,7 +153,7 @@ EP_sampling_filter_to_use <- function(data, parameters)
 }
 
 # EM algorithm
-EM_iterations = 500
+EM_iterations = 100
 
 EM_output_EP = multinomial_probit_EM_Sigma( data_multinomial_probit,
                                             EP_sampling_filter_to_use, type = "nonstd",
