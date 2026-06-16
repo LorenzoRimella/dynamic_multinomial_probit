@@ -55,7 +55,7 @@ listing = c(10, 30, 60)
 for(i in 1:3)
 {
   Time = listing[i]
-  string = paste("DMP_cineca/data/parallel_Sigma_trace_AGL_repeat_EM_p_9_mt_15_L_3_Time_", Time, sep = "")
+  string = paste("data/parallel_Sigma_trace_AGL_repeat_EM_p_9_mt_15_L_3_Time_", Time, sep = "")
   string = paste(string, "/parallel_Sigma_trace_AGL_repeat_EM_p_9_mt_15_L_3_Time_" ,sep = "")
   string = paste(string, Time ,sep = "")
   
@@ -264,4 +264,4 @@ ggem = ggplot(df_long) +
   scale_y_continuous(breaks = df$id, labels = y_labels)
 
 
-ggsave("em_repeated.png", plot = ggem, width = 10, height = 6, dpi = 100, units = "in")
+ggsave("figures/em_repeated.png", plot = ggem, width = 10, height = 6, dpi = 100, units = "in")

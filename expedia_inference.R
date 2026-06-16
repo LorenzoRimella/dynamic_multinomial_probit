@@ -1,14 +1,14 @@
 rm(list=ls())
 # Set the directory to the path of the current script
 
-source("DMP_cineca/scripts/utils.R")
-source("DMP_cineca/scripts/model.R")
-source("DMP_cineca/scripts/multinomial_probit_filter_EP.R")
-source("DMP_cineca/scripts/multinomial_probit_filter_SMC.R")
-source("DMP_cineca/scripts/multinomial_probit_filter_ADF.R")
-source("DMP_cineca/scripts/multinomial_probit_filter_exact.R")
-source("DMP_cineca/scripts/multinomial_probit_gaussian_smoothing.R")
-source("DMP_cineca/scripts/multinomial_probit_EM_Sigma.R")
+source("scripts/utils.R")
+source("scripts/model.R")
+source("scripts/multinomial_probit_filter_EP.R")
+source("scripts/multinomial_probit_filter_SMC.R")
+source("scripts/multinomial_probit_filter_ADF.R")
+source("scripts/multinomial_probit_filter_exact.R")
+source("scripts/multinomial_probit_gaussian_smoothing.R")
+source("scripts/multinomial_probit_EM_Sigma.R")
 
 library(tidyr)
 library(dplyr)
@@ -23,12 +23,12 @@ library(tidyr)
 
 
 # LOAD DATA
-data_X = read.csv("DMP_cineca/data/data_X10_rand.csv")
+data_X = read.csv("data/data_X10_rand.csv")
 data_X$prop_location_score1 = as.double(scale(data_X$prop_location_score1))
 data_X$log_price_usd = as.double(scale(data_X$log_price_usd))
 data_X$prop_starrating = as.double(scale(data_X$prop_starrating))
 
-data_Y = read.csv("DMP_cineca/data/data_Y10_rand.csv")
+data_Y = read.csv("data/data_Y10_rand.csv")
 
 covariates_names = c( #"prop_brand_bool",   
                       "prop_location_score1",
@@ -118,7 +118,8 @@ for(alpha_num in c(0.5, 0.75, 0.9, 0.95, 0.99)){
   
   output_name = sim_name(name_init, L, Time, p, expected_m_t)
   name_simulation = output_name$name
-  directory_name  = paste("DMP_cineca/data/", output_name$name_for_dir, sep ="")
+  directory_name  = paste("data/", output_name$name_for_dir, sep ="")
+  print(directory_name)
   load(paste(paste(directory_name, sep = "", name_simulation), sep = "", "_EM.Rdata"))
   
   loglikelihoods[counter,] = EM_output_EP$log_likelihood_history
@@ -139,7 +140,7 @@ expected_m_t = mean(sapply(seq(1,length(X)), function(i) return(dim(X[[i]])[1]))
 
 output_name = sim_name(name_init, L, 50, p, 14.64)
 name_simulation = output_name$name
-directory_name  = paste("DMP_cineca/data/", output_name$name_for_dir, sep ="")
+directory_name  = paste("data/", output_name$name_for_dir, sep ="")
 load(paste(paste(directory_name, sep = "", name_simulation), sep = "", "_EM.Rdata"))
 
 a_0 = matrix(rep(0, beta_size), ncol = 1)
@@ -389,5 +390,5 @@ p_facet <- ggplot(df_rest, aes(.time, mean)) +
 
 p_facet  # show the faceted plot
 
-ggsave("expedia123.png", p_color, width = 12, height = 3, dpi = 300)
-ggsave("expediarest.png", p_facet, width = 12, height = 6, dpi = 300)
+ggsave("figures/expedia123.png", p_color, width = 12, height = 3, dpi = 300)
+ggsave("figures/expediarest.png", p_facet, width = 12, height = 6, dpi = 300)

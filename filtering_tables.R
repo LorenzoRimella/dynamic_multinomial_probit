@@ -4,7 +4,7 @@ library(tidyr)
 library(xtable)
 
 
-load("DMP_cineca/data/parallel_filt_smoot_lik_p_9_mt_10_L_3_Time_10/parallel_filt_smoot_lik_p_9_mt_10_L_3_Time_10_data.Rdata")
+load("data/parallel_filt_smoot_lik_p_9_mt_10_L_3_Time_10/parallel_filt_smoot_lik_p_9_mt_10_L_3_Time_10_data.Rdata")
 
 # Compute mean and standard deviation for each type
 summary_table <- data_frame_output %>%
@@ -26,7 +26,7 @@ summary_table <- data_frame_output %>%
 print(summary_table, row.names = FALSE)
 xtable(t(summary_table))
 
-load("DMP_cineca/data/full_parallel_filt_smoot_lik_p_9_mt_10_L_3_Time_50/full_parallel_filt_smoot_lik_p_9_mt_10_L_3_Time_50_data.Rdata")
+load("data/full_parallel_filt_smoot_lik_p_9_mt_10_L_3_Time_50/full_parallel_filt_smoot_lik_p_9_mt_10_L_3_Time_50_data.Rdata")
 
 # Compute mean and standard deviation for each type
 summary_table <- data_frame_output %>%
@@ -48,7 +48,7 @@ summary_table <- data_frame_output %>%
 print(summary_table, row.names = FALSE)
 xtable(t(summary_table))
 
-load("DMP_cineca/data/full_parallel_filt_smoot_lik_p_9_mt_50_L_3_Time_50/full_parallel_filt_smoot_lik_p_9_mt_50_L_3_Time_50_data.Rdata")
+load("data/full_parallel_filt_smoot_lik_p_9_mt_50_L_3_Time_50/full_parallel_filt_smoot_lik_p_9_mt_50_L_3_Time_50_data.Rdata")
 
 # Compute mean and standard deviation for each type
 summary_table <- data_frame_output %>%
@@ -69,3 +69,4 @@ summary_table <- data_frame_output %>%
 # Print table
 print(summary_table, row.names = FALSE)
 xtable(t(summary_table))
+

@@ -4,15 +4,15 @@ library(tidyr)
 library(ggplot2)
 
 # plot trajectories
-load("DMP_cineca/data/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10_data_multinomial_probit_exact_filter.Rdata")
-load("DMP_cineca/data/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10_data_multinomial_probit_exact_smoother.Rdata")
-load("DMP_cineca/data/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10_data_multinomial_probit_SMC_filter.Rdata")
-load("DMP_cineca/data/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10_data_multinomial_probit_SMC_smoother.Rdata")
-load("DMP_cineca/data/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10_data_multinomial_probit_ADF_filter.Rdata")
-load("DMP_cineca/data/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10_data_multinomial_probit_ADF_smoother.Rdata")
-load("DMP_cineca/data/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10_data_multinomial_probit_EP_filter.Rdata")
-load("DMP_cineca/data/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10_data_multinomial_probit_EP_smoother.Rdata")
-load("DMP_cineca/data/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10_data_multinomial_probit_single.Rdata")
+load("data/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10_data_multinomial_probit_exact_filter.Rdata")
+load("data/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10_data_multinomial_probit_exact_smoother.Rdata")
+load("data/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10_data_multinomial_probit_SMC_filter.Rdata")
+load("data/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10_data_multinomial_probit_SMC_smoother.Rdata")
+load("data/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10_data_multinomial_probit_ADF_filter.Rdata")
+load("data/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10_data_multinomial_probit_ADF_smoother.Rdata")
+load("data/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10_data_multinomial_probit_EP_filter.Rdata")
+load("data/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10_data_multinomial_probit_EP_smoother.Rdata")
+load("data/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10_data_multinomial_probit_single.Rdata")
 
 dim(data_multinomial_probit$X[[1]]) # n_obs x p x L
 t(data_multinomial_probit$X[[1]][1,,]) # design matrix for first individual at first time
@@ -115,17 +115,17 @@ gg1 = ggplot(plot_data, aes(x = x)) +
     y = expression(beta[t])
   )
 
-ggsave("traj1010.png", plot = gg1, width = 10, height = 6, dpi = 300, units = "in")
+ggsave("figures/traj1010.png", plot = gg1, width = 10, height = 6, dpi = 300, units = "in")
 
 
 # plot trajectories
-load("DMP_cineca/data/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10_data_multinomial_probit_SMC_filter.Rdata")
-load("DMP_cineca/data/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10_data_multinomial_probit_SMC_smoother.Rdata")
-load("DMP_cineca/data/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10_data_multinomial_probit_ADF_filter.Rdata")
-load("DMP_cineca/data/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10_data_multinomial_probit_ADF_smoother.Rdata")
-load("DMP_cineca/data/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10_data_multinomial_probit_EP_filter.Rdata")
-load("DMP_cineca/data/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10_data_multinomial_probit_EP_smoother.Rdata")
-load("DMP_cineca/data/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10_data_multinomial_probit_single.Rdata")
+load("data/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10_data_multinomial_probit_SMC_filter.Rdata")
+load("data/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10_data_multinomial_probit_SMC_smoother.Rdata")
+load("data/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10_data_multinomial_probit_ADF_filter.Rdata")
+load("data/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10_data_multinomial_probit_ADF_smoother.Rdata")
+load("data/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10_data_multinomial_probit_EP_filter.Rdata")
+load("data/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10_data_multinomial_probit_EP_smoother.Rdata")
+load("data/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10_data_multinomial_probit_single.Rdata")
 
 # PLOT FILTERING
 # Create a data frame for plotting
@@ -208,14 +208,14 @@ gg2 = ggplot(plot_data, aes(x = x)) +
   )
 
 
-ggsave("traj5010.png", plot = gg2, width = 10, height = 6, dpi = 300, units = "in")
+ggsave("figures/traj5010.png", plot = gg2, width = 10, height = 6, dpi = 300, units = "in")
 
 # plot trajectories
-load("DMP_cineca/data/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_50/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_50_data_multinomial_probit_ADF_filter.Rdata")
-load("DMP_cineca/data/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_50/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_50_data_multinomial_probit_ADF_smoother.Rdata")
-load("DMP_cineca/data/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_50/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_50_data_multinomial_probit_EP_filter.Rdata")
-load("DMP_cineca/data/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_50/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_50_data_multinomial_probit_EP_smoother.Rdata")
-load("DMP_cineca/data/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_50/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_50_data_multinomial_probit_single.Rdata")
+load("data/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_50/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_50_data_multinomial_probit_ADF_filter.Rdata")
+load("data/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_50/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_50_data_multinomial_probit_ADF_smoother.Rdata")
+load("data/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_50/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_50_data_multinomial_probit_EP_filter.Rdata")
+load("data/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_50/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_50_data_multinomial_probit_EP_smoother.Rdata")
+load("data/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_50/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_50_data_multinomial_probit_single.Rdata")
 
 # PLOT FILTERING
 # Create a data frame for plotting
@@ -288,4 +288,5 @@ gg3 = ggplot(plot_data, aes(x = x)) +
   )
 
 
-ggsave("traj5050.png", plot = gg3, width = 10, height = 6, dpi = 300, units = "in")
+ggsave("figures/traj5050.png", plot = gg3, width = 10, height = 6, dpi = 300, units = "in")
+
