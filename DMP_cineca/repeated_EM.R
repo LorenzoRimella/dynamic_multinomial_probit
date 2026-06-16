@@ -250,14 +250,18 @@ ggem = ggplot(df_long) +
   theme_minimal() +
   labs(
     x = "Value",
-    y = "",
-    title = expression("True vs estimated values of " * Sigma)
+    y = ""
   ) +
   theme(
-    plot.title = element_text(hjust = 0.5),
+    text = element_text(size = 16),               # global font size
+    plot.title = element_text(size = 20, hjust = 0.5),
+    axis.title = element_text(size = 16),
+    axis.text = element_text(size = 14),
+    legend.title = element_text(size = 16),
+    legend.text = element_text(size = 14),
     legend.position = "right"
   ) +
   scale_y_continuous(breaks = df$id, labels = y_labels)
 
 
-ggsave("em_repeated.png", plot = ggem, width = 10, height = 6, dpi = 300, units = "in")
+ggsave("em_repeated.png", plot = ggem, width = 10, height = 6, dpi = 100, units = "in")

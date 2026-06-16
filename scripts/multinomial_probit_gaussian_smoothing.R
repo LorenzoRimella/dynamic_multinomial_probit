@@ -11,7 +11,7 @@ SUN_translator_eps <- function(x_t, y_t, a, P, parameters)
     inv_omega0_t = t(t(diag(t(t(1/sqrt(diag(Omega0_t)))))))
     barOmega0_t  = inv_omega0_t %*% Omega0_t %*% inv_omega0_t
     
-    XPX_VSigV = lapply(seq(1, m_t), function(i) X_minus_l(x_t[i,,], y_t[i], L) %*% P[[i]] %*% t(X_minus_l(x_t[i,,], y_t[i], L)) + (-V_minus_l(y_t[i], L)) %*% Omega0_t %*% t(-V_minus_l(y_t[i], L)) )
+    XPX_VSigV = lapply(seq(1, m_t), function(i) X_minus_l(x_t[i,,], y_t[i], L) %*% P[[i]] %*% t(X_minus_l(x_t[i,,], y_t[i], L)) + (V_minus_l(y_t[i], L)) %*% Omega0_t %*% t(V_minus_l(y_t[i], L)) )
     
     s0_t     = lapply(seq(1, m_t), function(i) t(t(diag(t(t(  sqrt(diag(XPX_VSigV[[i]]))))))))
     inv_s0_t = lapply(seq(1, m_t), function(i) t(t(diag(t(t(1/sqrt(diag(XPX_VSigV[[i]])))))))) # double transpose cause there was a dim bug
@@ -21,14 +21,14 @@ SUN_translator_eps <- function(x_t, y_t, a, P, parameters)
     inv_omega0_t = diag(1/sqrt(diag(Omega0_t)))
     barOmega0_t  = inv_omega0_t %*% Omega0_t %*% inv_omega0_t
     
-    XPX_VSigV = lapply(seq(1, m_t), function(i) X_minus_l(x_t[i,,], y_t[i], L) %*% P[[i]] %*% t(X_minus_l(x_t[i,,], y_t[i], L)) + (-V_minus_l(y_t[i], L)) %*% Omega0_t %*% t(-V_minus_l(y_t[i], L)) )
+    XPX_VSigV = lapply(seq(1, m_t), function(i) X_minus_l(x_t[i,,], y_t[i], L) %*% P[[i]] %*% t(X_minus_l(x_t[i,,], y_t[i], L)) + (V_minus_l(y_t[i], L)) %*% Omega0_t %*% t(V_minus_l(y_t[i], L)) )
     
     s0_t     = lapply(seq(1, m_t), function(i) diag(  sqrt(diag(XPX_VSigV[[i]]))))
     inv_s0_t = lapply(seq(1, m_t), function(i) diag(1/sqrt(diag(XPX_VSigV[[i]]))))
     
   }
   
-  Delta0_t = lapply(seq(1, m_t), function(i) barOmega0_t %*% omega0_t %*% t(-V_minus_l(y_t[i], L)) %*% inv_s0_t[[i]])
+  Delta0_t = lapply(seq(1, m_t), function(i) barOmega0_t %*% omega0_t %*% t(V_minus_l(y_t[i], L)) %*% inv_s0_t[[i]])
   
   gamma0_t = lapply(seq(1, m_t), function(i) inv_s0_t[[i]] %*% X_minus_l(x_t[i,,], y_t[i], L) %*% a[[i]])
   Gamma0_t = lapply(seq(1, m_t), function(i) inv_s0_t[[i]] %*% XPX_VSigV[[i]] %*% inv_s0_t[[i]])
@@ -132,7 +132,7 @@ epsilon_smoother <- function(data, parameters, filter_output, smoother_output, t
   }
 }
 
-EP_epsilon_smoother <- function(data, parameters, EP_filter_output, EP_smoother_output)
+EP_epsilon_smoother <- function(data, parameters, EP_filter_output, $)
 {
   Time = dim(EP_filter_output$a_history)[1]-1
   

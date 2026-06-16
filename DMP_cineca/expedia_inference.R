@@ -40,7 +40,7 @@ L = 10
 t_0  = min(data_X$t)
 Time = max(data_X$t)
 
-end   = Time - t_0 + 1
+end   = 50 #Time - t_0 + 1
 
 X = list()
 Y = list()
@@ -108,6 +108,7 @@ EM_iterations = 100
 loglikelihoods = array(NA, c(5, EM_iterations+1))
 Sigmas         = array(NA, c(5, EM_iterations+1, 10, 10))
 
+Time_data = 50
 counter = 1
 for(alpha_num in c(0.5, 0.75, 0.9, 0.95, 0.99)){
   name_init = paste("inference_expedia_alpha_", alpha_num, sep="")
@@ -131,7 +132,7 @@ plot(loglikelihoods[,EM_iterations+1], type = "l")
 
 alpha_num = 0.99
 
-name_init = paste("inference_expedia_alpha_", alpha_num, sep="")
+name_init = paste("inference_expedia_longEM_alpha_", alpha_num, sep="")
 name_init = paste(name_init, "_EP_p_", sep="")
 
 expected_m_t = mean(sapply(seq(1,length(X)), function(i) return(dim(X[[i]])[1])))
@@ -184,7 +185,7 @@ ggplot(df, aes(x = iteration, y = value)) +
   labs(
     title = expression(Sigma ~ " history"),  # ← Greek Sigma
     x = "Iteration",
-    y = "Value"
+    y = expression(Sigma)
   ) +
   scale_x_continuous(breaks = c(0, 500)) +   # ← only show 0 and 500
   theme(
@@ -197,146 +198,196 @@ log_df <- data.frame(
   log_likelihood = EM_output_EP$log_likelihood_history
 )
 
-ggplot(log_df, aes(x = iteration, y = log_likelihood)) +
+plot1 =ggplot(log_df, aes(x = iteration, y = log_likelihood)) +
   geom_line() +
-  theme_minimal(base_size = 10) +
+  theme_minimal(base_size = 5) +
   labs(
-    title = expression("Log-likelihood history"),
     x = "Iteration",
-    y = expression(log~L)
+    y = "log-likelihood"
   ) +
   scale_x_continuous(breaks = c(0, 500)) 
 
 
 # Extract the final 10x10 slice
-Sigma_final <- EM_output_EP$Sigma_history[101, , ]
+Sigma_final <- EM_output_EP$Sigma_history[501, , ]
+Sigma_cor = cov2cor(Sigma_final)
 
 # Create grid of positions
 positions <- expand.grid(row = 1:L, col = 1:L)
 
 # Flatten the matrix into a vector (row-major order)
-positions$value <- as.vector(Sigma_final)
+positions$value <- as.vector(Sigma_cor)
 
 # Plot heatmap
-ggplot(positions, aes(x = col, y = row, fill = value)) +
+plot2=ggplot(positions, aes(x = col, y = row, fill = value)) +
   geom_tile(color = "grey80") +
   scale_fill_viridis_c(name = "Value") +
   coord_fixed() +
   scale_x_continuous(breaks = 1:L) +
   scale_y_reverse(breaks = 1:L) +  # reverse to match image() orientation
   labs(
-    title = expression(Sigma ~ " matrix"),
     x = "Row",
     y = "Col"
   ) +
-  theme_minimal(base_size = 11) +
+  theme_minimal(base_size = 5) +
   theme(
     panel.grid = element_blank(),
-    axis.title = element_text(size = 10),
+    axis.title = element_text(size = 5),
     plot.title = element_text(hjust = 0.5)
   )
+
+library(patchwork)
+
+plot1 | plot2
+
+
+L = 10
+t_0  = min(data_X$t)
+Time = max(data_X$t)
+
+end   = Time - t_0 + 1
+
+X = list()
+Y = list()
+
+set.seed(678)
+
+percent_search = 1
+
+current_t = t_0
+for(i in 1:end)
+{
+  current_X = subset(data_X,    t == current_t)
+  current_Y = subset(data_Y, t == current_t)
+  searches  = unique(current_X$srch_id)
+  
+  n_searches = floor(percent_search*length(searches))
+  
+  if(n_searches<2){n_searches = 2}
+  
+  searches = sample(searches, n_searches, replace = FALSE, prob = NULL)
+  
+  X_array = array(NA, dim = c(length(searches), length(covariates_names)+L, L))
+  Y_array = array(NA, dim = c(length(searches)))
+  index_s=1
+  for(s in searches)
+  {
+    #print(s)
+    current_X_search = subset(current_X, srch_id == s)
+    current_X_search = current_X_search[order(current_X_search$position), ]
+    current_X_search = current_X_search[, covariates_names]
+    
+    current_Y_search = subset(current_Y, srch_id == s)
+    current_Y_search = current_Y_search$booking_pos_sum
+    
+    X_array[index_s,,] = rbind(t(as.matrix(current_X_search)), diag(rep(1, L)))
+    Y_array[index_s]   = current_Y_search
+    index_s = index_s +1
+  }
+  
+  X[[i]] = X_array
+  Y[[i]] = Y_array
+  
+  current_t = current_t+1
+}
+
+data_multinomial_probit = list(X = X, Y = Y)
 
 # Filter
 parameters = list(a_0 = a_0,
                   P_0 = P_0,
                   G   = G,
                   W   = W,
-                  Sigma = EM_output_EP$Sigma_history[101, , ])
+                  Sigma = EM_output_EP$Sigma_history[501, , ])
 
 EP_filter_sampler_output = EP_sampling_filter_to_use(data_multinomial_probit, parameters)
 
-matplot(EP_filter_sampler_output$a_history[,1:3], ty = "l", lty = 1, col = 1:3)
-legend("topright",
-       legend = 1:3,
-       col = 1:3,
-       lty = 1)
+a_hist <- EP_filter_sampler_output$a_history      # T x M matrix (means)
+P_hist <- EP_filter_sampler_output$P_history      # T x M x M array (covariances)
+
+T_ <- nrow(a_hist)
+M_ <- ncol(a_hist)
+
+# 1) Extract variances (diagonal) for each time step -> T x M matrix
+vars_mat <- t(sapply(1:T_, function(t) sapply(1:M_, function(i) P_hist[t, i,i])))
 
 
+# Optional: provide names for dimensions if missing
+if (is.null(colnames(a_hist))) colnames(a_hist) <- paste0("dim", seq_len(M_))
+colnames(vars_mat) <- colnames(a_hist)
 
-matplot(EP_filter_sampler_output$a_history[,4], lwd = 2, ty = "l", lty = 1, col = 1:3)
+# If you have real time stamps, set them here; otherwise use 1:T_
+time_vec <- seq_len(T_)  # replace with your vector, e.g. time_vec <- EP_filter_sampler_output$time
 
-legend("topright",
-       legend = 1:3,
-       col = 1:3,
-       lwd = 2,
-       lty = 1)
-
-
-
-Time <- length(data_multinomial_probit$Y)
-
-color_list <- c("blue", "black", "red", "magenta", "brown")
-
-# individual-specific characteristics
-indeces <- 1:6
-# PLOT FILTERING
-# Create a data frame for plotting
-data_list <- list()
-for (j in indeces) {
-  i =1
-  
-  df_filter <- data.frame(
-    x = seq(0, Time, length.out = Time+1),
-    y1 = data_multinomial_probit$Beta[, 1*(j-1) + i],
-    y2 = EP_filter_sampler_output$a_history[, 1*(j-1) + i],
-    y_upper = EP_filter_sampler_output$a_history[, 1*(j-1) + i] + 1.96 * sqrt(EP_filter_sampler_output$P_history[, 1*(j-1) + i, 1*(j-1) + i]),
-    y_lower = EP_filter_sampler_output$a_history[, 1*(j-1) + i] - 1.96 * sqrt(EP_filter_sampler_output$P_history[, 1*(j-1) + i, 1*(j-1) + i]),
-    color = color_list[i],
-    facet_row = j+3,
-    facet_col = "EP"
+# Build tidy frame with mean, variance, sd, and 95% CI
+df <- as.data.frame(a_hist) |>
+  mutate(.time = time_vec) |>
+  pivot_longer(-.time, names_to = "dimension", values_to = "mean") |>
+  left_join(
+    as.data.frame(vars_mat) |>
+      mutate(.time = time_vec) |>
+      pivot_longer(-.time, names_to = "dimension", values_to = "var"),
+    by = c(".time", "dimension")
+  ) |>
+  mutate(
+    sd    = sqrt(pmax(var, 0)),           # guard tiny negative numeric noise
+    lower = mean - 1.96 * sd,
+    upper = mean + 1.96 * sd
   )
-  data_list[[length(data_list) + 1]] <- df_filter
-  
-  df_filter <- data.frame(
-    x = seq(0, Time, length.out = Time+1),
-    y1 = data_multinomial_probit$Beta[, 1*(j-1) + i],
-    y2 = ADF_filter_sampler_output$a_history[, 1*(j-1) + i],
-    y_upper = ADF_filter_sampler_output$a_history[, 1*(j-1) + i] + 1.96 * sqrt(ADF_filter_sampler_output$P_history[, 1*(j-1) + i, 1*(j-1) + i]),
-    y_lower = ADF_filter_sampler_output$a_history[, 1*(j-1) + i] - 1.96 * sqrt(ADF_filter_sampler_output$P_history[, 1*(j-1) + i, 1*(j-1) + i]),
-    color = color_list[i+1],
-    facet_row = j+3,
-    facet_col = "ADF"
-  )
-  data_list[[length(data_list) + 1]] <- df_filter
-  
-  df_filter <- data.frame(
-    x = seq(0, Time, length.out = Time+1),
-    y1 = data_multinomial_probit$Beta[, 1*(j-1) + i],
-    y2 = SMC_filter_sampler_output$a_history[, 1*(j-1) + i],
-    y_upper = SMC_filter_sampler_output$a_history[, 1*(j-1) + i] + 1.96 * sqrt(SMC_filter_sampler_output$P_history[, 1*(j-1) + i, 1*(j-1) + i]),
-    y_lower = SMC_filter_sampler_output$a_history[, 1*(j-1) + i] - 1.96 * sqrt(SMC_filter_sampler_output$P_history[, 1*(j-1) + i, 1*(j-1) + i]),
-    color = color_list[i+2],
-    facet_row = j+3,
-    facet_col = "SMC"
-  )
-  data_list[[length(data_list) + 1]] <- df_filter
-}
 
-plot_data <- bind_rows(data_list)
+# Assuming you already have df built (with .time, dimension, mean, lower, upper, etc.)
+first_three <- colnames(a_hist)[1:3]
+remaining_dims <- setdiff(colnames(a_hist), first_three)
 
-# Create the ggplot
-ggplot(plot_data, aes(x = x)) +
-  geom_line(aes(y = y1, color = color), alpha = 0.5) +
-  geom_line(aes(y = y2, color = color), alpha = 1.0) +
-  geom_ribbon(aes(ymin = y_lower, ymax = y_upper, fill = color), alpha = 0.5) +
-  facet_grid(facet_row ~ facet_col) +
-  scale_color_identity() +
-  scale_fill_identity() +
-  theme_minimal() +
-  theme(
-    panel.spacing = unit(1, "lines"),
-    plot.title = element_text(hjust = 0.5, size = 24, face = "bold"),
-    strip.text = element_text(size = 18),         # Facet labels (e.g., column/row labels)
-    axis.title = element_text(size = 18),         # Axis titles (x and y)
-    axis.text = element_text(size = 14)
-  ) +
+# ---- 1️⃣ Combined plot for the first 3 dimensions ----
+df_first3 <- df %>%
+  filter(dimension %in% first_three) %>%
+  mutate(
+    dimension = recode(dimension,
+                       "dim1" = "prop_location_score1",
+                       "dim2" = "log_price_usd",
+                       "dim3" = "prop_starrating"
+    )
+  )
+
+df_first3$.time <- as.Date(df_first3$.time, origin = "2013-03-01")
+
+p_color <- ggplot(df_first3, aes(.time, mean, color = dimension, fill = dimension)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.15, color = NA) +
+  geom_line(linewidth = 0.6) +
   labs(
-    title = "Parameters for individual-specific characteristics",
-    x = "Time",
-    y = "Beta_t"
+    x = "",
+    y = expression(beta[t]),
+    color = "Dimension",
+    fill = "Dimension"
+  ) +
+  theme_minimal(base_size = 12)
+
+p_color  # show the combined plot
+
+
+# ---- 2️⃣ Faceted plots for remaining dimensions ----
+pos_names <- paste0("pos", seq_along(remaining_dims))
+rename_map <- setNames(pos_names, remaining_dims)
+
+df_rest <- df %>%
+  filter(dimension %in% remaining_dims) %>%
+  mutate(
+    dimension = recode(dimension, !!!rename_map),
+    dimension = factor(dimension, levels = pos_names)
   )
 
 
+df_rest$.time <- as.Date(df_rest$.time, origin = "2013-03-01")
 
+p_facet <- ggplot(df_rest, aes(.time, mean)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.2) +
+  geom_line() +
+  facet_wrap(~ dimension, scales = "free_y", ncol = 5) +
+  labs(x = "Date", y = expression(beta[t])) +
+  theme_minimal(base_size = 12)
 
+p_facet  # show the faceted plot
 
+ggsave("expedia123.png", p_color, width = 12, height = 3, dpi = 300)
+ggsave("expediarest.png", p_facet, width = 12, height = 6, dpi = 300)
