@@ -1,3 +1,8 @@
+#install.packages(c("Matrix","MASS","abind",
+#                   "mvtnorm","MomTrunc","TruncatedNormal","tlrmvnmvt","magic",
+#                   "matrixcalc",
+#                   "purrr","furrr","dplyr","tidyr"))
+
 library(Matrix)
 library(MASS)
 library(abind)
@@ -10,11 +15,14 @@ library(magic)
 
 library(matrixcalc)
 
-## r libraries ##
 library(purrr)
 library(furrr)
 library(dplyr)
 library(tidyr)
+
+library(future.apply)
+library(transport)
+library(expm)
 
 one_hot <- function(position, dimension)
 {

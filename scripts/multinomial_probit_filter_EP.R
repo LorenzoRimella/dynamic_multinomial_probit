@@ -1,10 +1,3 @@
-library(mvtnorm)
-library(TruncatedNormal)
-library(magic)
-
-library(MomTrunc)
-library(tlrmvnmvt)
-
 SUN_site_i_parameters <- function(i, x_t, y_t, r_minus_i, Q_minus_i, parameters)
 {
   
@@ -54,7 +47,7 @@ log_Psi<- function(r_Psi, Q_Psi)
 
 # stabilize EP by convex combination alpha=0.999 (close to new update)
 
-site_i_update <- function(i, x_t, y_t, r, Q, logZ, parameters, MC_samples=1e4)
+site_i_update <- function(i, x_t, y_t, r, Q, logZ, parameters, MC_samples)
 {
   r_minus_i = t(t(apply(r[-i,], 2, sum)))
   Q_minus_i = apply(Q[-i,,], MARGIN = c(2,3), sum)
@@ -95,7 +88,7 @@ EP_log_likelihood_increments <- function(r, Q, logZ)
   return(log_likelihood_increment)
 }
 
-EP_sampling_correction <- function(x_t, y_t, a_t_tm1, P_t_tm1, parameters, EP_max_iterations=1e3, MC_samples=1e4, tol)
+EP_sampling_correction <- function(x_t, y_t, a_t_tm1, P_t_tm1, parameters, EP_max_iterations, MC_samples, tol)
 {
   L = dim(x_t)[3]
   m_t = dim(x_t)[1]
@@ -157,7 +150,7 @@ EP_sampling_correction <- function(x_t, y_t, a_t_tm1, P_t_tm1, parameters, EP_ma
 }
 
 
-EP_sampling_filter <- function(data, parameters, EP_max_iterations=1e3, MC_samples=1e4, tol = 10e-3)
+EP_sampling_filter <- function(data, parameters, EP_max_iterations, MC_samples, tol = 10e-3)
 {
   start_time <- Sys.time()
   L = dim(parameters$Sigma)[1]
@@ -206,29 +199,3 @@ EP_sampling_filter <- function(data, parameters, EP_max_iterations=1e3, MC_sampl
               sampling_history = sampling_history,
               running_time = as.numeric(Sys.time() - start_time, units = "secs")))
 }
-
-EP_predictive <- function(data, parameters, EP_output, MC_samples)
-{
-  L = dim(parameters$Sigma)[1]
-  Time = dim(EP_output$a_history)[1]-1
-  
-  V_minus_pre_computed = lapply(seq(0, L), function(i) V_minus_l(i,L))
-  
-  single_t <- function(t)
-  {
-    # print(t)
-    EP_prediction_parameters = ADF_prediction(EP_output$a_history[t,], EP_output$P_history[t,,], parameters)
-    
-    sample_beta_t_tm1 = mvtnorm::rmvnorm(n = MC_samples, mean = EP_prediction_parameters$a_t_tm1, sigma = EP_prediction_parameters$P_t_tm1)
-    
-    
-    x_t = data$X[[t]]
-    
-    utility_i <- function(i) t(t(x_t[i,,]) %*% t(sample_beta_t_tm1)) + mvtnorm::rmvnorm(n = MC_samples, mean = t(t(rep(0, L))), sigma = parameters$Sigma)
-    
-    return(t(sapply(seq(1, dim(x_t)[1]), function(i) as.numeric(table(factor(apply(cbind(rep(0, L), utility_i(i)), 1, which.max), levels = 1:L)))/MC_samples)))
-  }
-  
-  return(lapply(seq(1, Time), single_t))
-}
-

@@ -72,7 +72,7 @@ simulator <- function(X_cov, Y_cov, parameters, hyperparameters = list(lambda_M,
     
     Beta[t+1,] = mvrnorm(n = 1, kernel_param_list$a_t, kernel_param_list$P_t)
     
-    custumers_cov  = X_cov[customers_index_set[[t]],]
+    custumers_cov  = t(t(X_cov[customers_index_set[[t]],]))
     properties_cov = lapply(seq(1, M_t[[t]]), function(i) Y_cov[property_index_set[[t]][,i],])
 
     X_list = lapply(seq(1, M_t[[t]]), function(i) t(cbind(t(abind(lapply(seq(1, L), 
