@@ -33,8 +33,8 @@ for (j in indeces) {
     x = seq(0, Time, length.out = Time+1),
     y1 = data_multinomial_probit$Beta[, j],
     y2 = exact_filter_sampler_output$a_history[, j],
-    y_upper = exact_filter_sampler_output$a_history[, j] + 1.96 * sqrt(EP_filter_sampler_output$P_history[, j, j]),
-    y_lower = exact_filter_sampler_output$a_history[, j] - 1.96 * sqrt(EP_filter_sampler_output$P_history[, j, j]),
+    y_upper = exact_filter_sampler_output$a_history[, j] + 1.96 * sqrt(exact_filter_sampler_output$P_history[, j, j]),
+    y_lower = exact_filter_sampler_output$a_history[, j] - 1.96 * sqrt(exact_filter_sampler_output$P_history[, j, j]),
     color = color_list[1],
     facet_row = i,
     facet_col = "i.i.d."

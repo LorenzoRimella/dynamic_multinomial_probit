@@ -43,13 +43,11 @@ p = p_X*L + p_Y
 
 expected_m_t = 15
 
-name_init="parallel_next1_Sigma_unconstrained_repeat_EM_p_"
+name_init="parallel_Sigma_trace_AGL_repeat_EM_p_"
 
 output_name = sim_name(name_init, L, Time, p, expected_m_t)
 name_simulation = output_name$name
 directory_name  = paste("../data/", output_name$name_for_dir, sep ="")
-
-print(directory_name)
 
 # Create the directory if needed
 if (!dir.exists(directory_name)) {
@@ -70,7 +68,10 @@ G = alpha*diag(beta_size)
 
 W = (1-alpha*alpha)*P_0
 
-Sigma = 0.2*diag(L)
+Sigma = diag(L)
+Sigma[1,1] = 1.6
+Sigma[2,2] = 0.2
+Sigma[3,3] = 1.2
 for(i in 2:L)
 {
   sign = sample(c(-1, 1), 1)
@@ -103,6 +104,8 @@ EP_max_iterations = 5
 MC_samples = 10000
 eps_sample_size = 10000
 tol = 10e-3
+target_trace = L
+
 EP_sampling_filter_to_use <- function(data, parameters)
 {
   return(EP_sampling_filter(data, parameters, EP_max_iterations, MC_samples, tol))
@@ -122,7 +125,7 @@ message("Using ", slurm_cpus, " workers for parallel processing.")
 plan(multisession, workers = slurm_cpus)
 
 results <- future_lapply(1:n_samples, function(i) {
-    
+  
   set.seed(678+i)
   print(i)
   
@@ -134,10 +137,10 @@ results <- future_lapply(1:n_samples, function(i) {
   data_multinomial_probit_next = simulator_given_covariates(data_multinomial_probit, parameters, hyperparameters, Time)
   
   EM_output_EP = multinomial_probit_EM_Sigma(data_multinomial_probit_next, 
-                                                EP_sampling_filter_to_use, type = "nonstd",
-                                                initial_parameters,
-                                                EM_iterations, eps_sample_size, 
-                                                log = c(FALSE, NA))
+                                             EP_sampling_filter_to_use, type = "nonstd",
+                                             initial_parameters, target_trace,
+                                             EM_iterations, eps_sample_size, 
+                                             log = c(FALSE, NA))
   
   EP_filter_output_truth   = EP_sampling_filter_to_use(data_multinomial_probit_next, parameters)
   

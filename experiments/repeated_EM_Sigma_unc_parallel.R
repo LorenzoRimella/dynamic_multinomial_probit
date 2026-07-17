@@ -35,7 +35,7 @@ library(tidyr)
 
 # SET UP THE SIMULATION
 L = 3 # number of choices
-Time= 30 # number of time steps
+Time= 30 # number of time steps change it to 10 for the other simulation
 
 p_X = 2 # number of subject dependent covariates
 p_Y = 3 # number of choice dependent covariates

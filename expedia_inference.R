@@ -351,7 +351,7 @@ df_first3 <- df %>%
     )
   )
 
-df_first3$.time <- as.Date(df_first3$.time, origin = "2013-03-01")
+df_first3$.time <- as.Date(df_first3$.time, origin = "2013-02-28")
 
 p_color <- ggplot(df_first3, aes(.time, mean, color = dimension, fill = dimension)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.15, color = NA) +
@@ -379,7 +379,7 @@ df_rest <- df %>%
   )
 
 
-df_rest$.time <- as.Date(df_rest$.time, origin = "2013-03-01")
+df_rest$.time <- as.Date(df_rest$.time, origin = "2013-02-28")
 
 p_facet <- ggplot(df_rest, aes(.time, mean)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.2) +

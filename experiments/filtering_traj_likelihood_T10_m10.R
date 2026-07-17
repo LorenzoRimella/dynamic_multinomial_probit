@@ -83,7 +83,7 @@ EP_max_iterations = 5
 tol= 10e-4
 MC_samples = 1e4
 
-sliding_window = 10
+sliding_window = 11
 
 set.seed(12345)
   
