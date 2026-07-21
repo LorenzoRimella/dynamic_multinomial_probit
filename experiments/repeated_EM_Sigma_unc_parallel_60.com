@@ -6,7 +6,7 @@
 #SBATCH --cpus-per-task=48                  # One CPU core per task
 #SBATCH --partition=g100_usr_pmem      # Partition (queue) to submit to
 #SBATCH --qos=g100_qos_lprod                  # Quality of Service
-#SBATCH --mem=128G                          # Memory per node (adjust as needed)
+#SBATCH --mem=64G                          # Memory per node (adjust as needed)
 #SBATCH --account=uBG25_EcoRim       # Project account number
 
 # Load necessary modules

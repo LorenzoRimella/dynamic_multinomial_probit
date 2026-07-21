@@ -103,24 +103,24 @@ message("Using ", slurm_cpus, " workers for parallel processing.")
 # Use multisession (safer on HPC clusters)
 plan(multisession, workers = slurm_cpus)
 
-n_replicates = 100
+n_replicates = 48
 
 results <- future_lapply(1:n_replicates, function(repl) {
   set.seed(12345+repl)
   print(repl)
-  
+
   EP_filter_sampler_output   = EP_sampling_filter(data_multinomial_probit, parameters, EP_max_iterations, MC_samples, tol)
   EP_smoother_sampler_output = Gaussian_smoother(data_multinomial_probit, parameters, EP_filter_sampler_output)
-  
+
   ADF_filter_sampler_output   = ADF_sampling_filter(data_multinomial_probit, parameters, MC_samples)
   ADF_smoother_sampler_output = Gaussian_smoother(data_multinomial_probit, parameters, ADF_filter_sampler_output)
-  
+
   exact_filter_sampler_output   = exact_sampling_filter(data_multinomial_probit, parameters, sliding_window, MC_samples)
   exact_smoother_sampler_output = Gaussian_smoother(data_multinomial_probit, parameters, exact_filter_sampler_output)
-  
+
   SMC_filter_sampler_output   = SMC_sampling_filter(data_multinomial_probit, parameters, MC_samples)
   SMC_smoother_sampler_output = Gaussian_smoother(data_multinomial_probit, parameters, SMC_filter_sampler_output)
-  
+
   df_EP = data.frame(
     type = "EP",
     filter_running_time = EP_filter_sampler_output$running_time,
@@ -129,7 +129,7 @@ results <- future_lapply(1:n_replicates, function(repl) {
     filter_distance_from_exact = mean_wasserstein_sampling(EP_filter_sampler_output$sampling_history, exact_filter_sampler_output$sampling_history),
     smoothing_distance_from_exact = mean_wasserstein_gaussian(EP_smoother_sampler_output, exact_smoother_sampler_output)
   )
-  
+
   df_ADF = data.frame(
     type = "ADF",
     filter_running_time = ADF_filter_sampler_output$running_time,
@@ -138,7 +138,7 @@ results <- future_lapply(1:n_replicates, function(repl) {
     filter_distance_from_exact = mean_wasserstein_sampling(ADF_filter_sampler_output$sampling_history, exact_filter_sampler_output$sampling_history),
     smoothing_distance_from_exact = mean_wasserstein_gaussian(ADF_smoother_sampler_output, exact_smoother_sampler_output)
   )
-  
+
   df_SMC = data.frame(
     type = "SMC",
     filter_running_time = SMC_filter_sampler_output$running_time,
@@ -147,7 +147,7 @@ results <- future_lapply(1:n_replicates, function(repl) {
     filter_distance_from_exact = mean_wasserstein_sampling(SMC_filter_sampler_output$sampling_history, exact_filter_sampler_output$sampling_history),
     smoothing_distance_from_exact = mean_wasserstein_gaussian(SMC_smoother_sampler_output, exact_smoother_sampler_output)
   )
-  
+
   df_exact = data.frame(
     type = "exact",
     filter_running_time = exact_filter_sampler_output$running_time,
@@ -156,7 +156,7 @@ results <- future_lapply(1:n_replicates, function(repl) {
     filter_distance_from_exact = 0,
     smoothing_distance_from_exact = 0
   )
-  
+
   return(list(df_EP, df_ADF, df_SMC, df_exact))
 }, future.seed=TRUE)
 
