@@ -56,6 +56,6 @@ SMC_sampling_filter <- function(data, parameters, MC_samples)
   
   return(list(log_likelihood = log_likelihood, 
               a_history = a_history, P_history = P_history,
-              sampling_history = sampling_history[2:Time+1,,],
+              sampling_history = sampling_history[2:(Time+1),,],
               running_time = as.numeric(Sys.time() - start_time, units = "secs")))
 }

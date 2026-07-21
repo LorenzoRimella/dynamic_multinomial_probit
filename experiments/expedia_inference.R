@@ -140,10 +140,10 @@ initial_parameters = list(a_0 = a_0,
                           Sigma = Sigma)
 
 # Filter
-EP_max_iterations = 5
+EP_max_iterations = 11
 MC_samples = 10000
 eps_sample_size = 10000
-tol = 10e-3
+tol = 1e-3
 
 target_trace = L
 

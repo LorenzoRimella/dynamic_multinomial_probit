@@ -100,10 +100,10 @@ log_likelihood_history = array(NA, dim = c(n_samples, EM_iterations+1))
 log_likelihood_true    = array(NA, dim = c(n_samples))
 
 # Filter
-EP_max_iterations = 5
+EP_max_iterations = 11
 MC_samples = 10000
 eps_sample_size = 10000
-tol = 10e-3
+tol = 1e-3
 target_trace = L
 
 EP_sampling_filter_to_use <- function(data, parameters)

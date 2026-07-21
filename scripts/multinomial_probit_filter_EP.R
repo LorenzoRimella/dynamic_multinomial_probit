@@ -184,7 +184,7 @@ EP_sampling_filter <- function(data, parameters, EP_max_iterations, MC_samples, 
     a_history[t+1,]  = EP_correction_output$a_t
     P_history[t+1,,] = EP_correction_output$P_t 
     
-    sampling_history[t,,] = mvtnorm::rmvnorm(n = MC_samples, mean = EP_correction_output$a_t, sigma = EP_correction_output$P_t)
+    sampling_history[t,,] = t(mvtnorm::rmvnorm(n = MC_samples, mean = EP_correction_output$a_t, sigma = EP_correction_output$P_t))
     
     log_likelihood = log_likelihood + EP_correction_output$log_likelihood_increment
     

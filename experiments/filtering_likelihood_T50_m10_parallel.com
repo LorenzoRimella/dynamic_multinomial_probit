@@ -13,4 +13,4 @@
 module load profile/bioinf
 module load autoload r
 
-Rscript DMP_cineca/experiments/filtering_likelihood_T10_m50_parallel.R
+Rscript DMP_cineca/experiments/filtering_likelihood_T50_m10_parallel.R

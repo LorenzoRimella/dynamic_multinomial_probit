@@ -79,8 +79,8 @@ Y_cov = matrix(runif(hyperparameters$Y_max*p_Y, -0.5, 0.5), nrow = hyperparamete
 data_multinomial_probit = simulator(X_cov, Y_cov, parameters, hyperparameters, Time)
 
 # COMPUTE FILTERS
-EP_max_iterations = 5
-tol= 10e-4
+EP_max_iterations = 11
+tol= 1e-3
 MC_samples = 1e4
 
 sliding_window = 11
