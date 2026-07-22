@@ -14,7 +14,7 @@ library(patchwork)
 
 dir.create("figures", showWarnings = FALSE)
 
-theme_jasa <- function(base_size = 9) {
+theme_dmnp <- function(base_size = 9) {
   theme_classic(base_size = base_size) +
     theme(
       axis.text = element_text(color = "black"),
@@ -47,7 +47,7 @@ save_plot <- function(plot, stem, width, height) {
 }
 
 # -----------------------------------------------------------------------------
-# Figure 1: stochastic EM history and estimated correlation matrix
+# Figure 1: EM history and estimated correlation matrix
 # -----------------------------------------------------------------------------
 
 result_file <- file.path(
@@ -80,8 +80,8 @@ p_loglik <- ggplot(loglik_df, aes(iteration, loglik)) +
   geom_line(color = "grey70", linewidth = 0.3) +
   geom_line(aes(y = moving_average), color = "#0072B2", linewidth = 0.75) +
   scale_x_continuous(breaks = seq(0, 500, by = 100), expand = expansion(mult = c(0.01, 0.01))) +
-  labs(x = "EM iteration", y = "Log-likelihood") +
-  theme_jasa()
+  labs(x = "EM iteration", y = "Log marginal likelihood") +
+  theme_dmnp()
 
 Sigma_final <- em_output$Sigma_history[dim(em_output$Sigma_history)[1], , ]
 correlation_final <- cov2cor(Sigma_final)
@@ -109,7 +109,7 @@ p_correlation <- ggplot(
   scale_y_reverse(breaks = 1:10, expand = c(0, 0)) +
   coord_fixed() +
   labs(x = "Position", y = "Position") +
-  theme_jasa() +
+  theme_dmnp() +
   theme(
     axis.line = element_blank(),
     axis.ticks = element_blank(),
@@ -192,8 +192,6 @@ parameters <- list(
   Sigma = Sigma_final
 )
 
-# EP_max_iterations = 11 corresponds to at most 10 completed sweeps because the
-# current implementation starts at iteration 1 and checks iteration < maximum.
 filter_output <- EP_sampling_filter(
   data = list(X = X, Y = Y),
   parameters = parameters,
@@ -259,7 +257,7 @@ p_attributes <- ggplot(
     expand = expansion(mult = c(0.01, 0.01))
   ) +
   labs(x = NULL, y = expression(beta[t])) +
-  theme_jasa()
+  theme_dmnp()
 
 p_positions <- ggplot(position_df, aes(date, mean)) +
   geom_hline(yintercept = 0, color = "grey55", linewidth = 0.3, linetype = "dashed") +
@@ -273,7 +271,7 @@ p_positions <- ggplot(position_df, aes(date, mean)) +
     expand = expansion(mult = c(0.01, 0.01))
   ) +
   labs(x = "Date", y = expression(beta[t])) +
-  theme_jasa(base_size = 8.5) +
+  theme_dmnp(base_size = 8.5) +
   theme(axis.text.x = element_text(size = 7.5))
 
 coefficient_plot <- p_attributes / p_positions +
