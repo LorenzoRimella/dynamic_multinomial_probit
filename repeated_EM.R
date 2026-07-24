@@ -221,14 +221,14 @@ ggem = ggplot(df_long) +
       yend = id + as.numeric(level)/100 - 0.2,
       color = level
     ),
-    linewidth = 1.5
+    linewidth = 1.7
   ) +
   
   # Points for estimated mean and true value
   geom_point(
     data = points_df,
     aes(x = x, y = y, color = group),
-    size = 3
+    size = 3.4
   ) +
   
   # Unified color legend (interval levels + mean + true value)
@@ -247,21 +247,24 @@ ggem = ggplot(df_long) +
   ) +
   
   # Styling
-  theme_minimal() +
+  theme_minimal(base_size = 17) +
   labs(
     x = "Value",
     y = ""
   ) +
   theme(
-    text = element_text(size = 16),               # global font size
-    plot.title = element_text(size = 20, hjust = 0.5),
-    axis.title = element_text(size = 16),
-    axis.text = element_text(size = 14),
-    legend.title = element_text(size = 16),
-    legend.text = element_text(size = 14),
-    legend.position = "right"
+    axis.title.x = element_text(size = 18),
+    axis.text = element_text(size = 16, color = "black"),
+    legend.text = element_text(size = 15),
+    legend.position = "right",
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_line(linewidth = 0.35, color = "grey88"),
+    plot.margin = margin(8, 10, 8, 8)
   ) +
   scale_y_continuous(breaks = df$id, labels = y_labels)
 
 
-ggsave("figures/em_repeated.png", plot = ggem, width = 10, height = 6, dpi = 100, units = "in")
+ggsave("figures/em_repeated.png", plot = ggem, width = 9, height = 5.4,
+       dpi = 300, units = "in", bg = "white")
+ggsave("figures/em_repeated.pdf", plot = ggem, width = 9, height = 5.4,
+       units = "in", bg = "white")
