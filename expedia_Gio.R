@@ -12,7 +12,24 @@ setwd(script_dir)
 library(ggplot2)
 library(patchwork)
 
+source(file.path("scripts", "utils.R"))
+source(file.path("scripts", "multinomial_probit_filter_ADF.R"))
+source(file.path("scripts", "multinomial_probit_filter_EP.R"))
+source(file.path("scripts", "multinomial_probit_gaussian_smoothing.R"))
+source(file.path("scripts", "multinomial_probit_EM_Sigma.R"))
+
 dir.create("figures", showWarnings = FALSE)
+
+# Common Expedia configuration. The first 50 days are used to estimate Sigma;
+# filtering is subsequently performed over the complete observation period.
+alpha <- 0.9
+em_time <- 50L
+em_iterations <- 500L
+EP_max_iterations <- 11L
+MC_samples <- 10000L
+eps_sample_size <- 10000L
+tol <- 1e-3
+L <- 10L
 
 theme_dmnp <- function(base_size = 9) {
   theme_classic(base_size = base_size) +
@@ -47,21 +64,135 @@ save_plot <- function(plot, stem, width, height) {
 }
 
 # -----------------------------------------------------------------------------
+# Prepare the Expedia data once for both EM estimation and full-period filtering
+# -----------------------------------------------------------------------------
+
+data_X <- read.csv(file.path("data", "data_X10_rand.csv"))
+data_Y <- read.csv(file.path("data", "data_Y10_rand.csv"))
+
+covariate_names <- c(
+  "prop_location_score1",
+  "log_price_usd",
+  "prop_starrating"
+)
+for (variable in covariate_names) {
+  data_X[[variable]] <- as.double(scale(data_X[[variable]]))
+}
+
+time_ids <- sort(unique(data_X$t))
+if (!identical(time_ids, seq.int(min(time_ids), max(time_ids)))) {
+  stop("The Expedia time index is not consecutive.")
+}
+if (length(time_ids) < em_time) {
+  stop("Fewer than ", em_time, " Expedia days are available.")
+}
+
+X <- vector("list", length(time_ids))
+Y <- vector("list", length(time_ids))
+
+# This reproduces the ordering used by the original analysis script.
+set.seed(678)
+for (i in seq_along(time_ids)) {
+  current_X <- data_X[data_X$t == time_ids[i], , drop = FALSE]
+  current_Y <- data_Y[data_Y$t == time_ids[i], , drop = FALSE]
+  searches <- unique(current_X$srch_id)
+  searches <- sample(searches, length(searches), replace = FALSE)
+
+  X_array <- array(NA_real_, dim = c(length(searches), length(covariate_names) + L, L))
+  Y_array <- numeric(length(searches))
+
+  for (j in seq_along(searches)) {
+    search_X <- current_X[current_X$srch_id == searches[j], , drop = FALSE]
+    search_X <- search_X[order(search_X$position), covariate_names, drop = FALSE]
+    search_Y <- current_Y$booking_pos_sum[current_Y$srch_id == searches[j]]
+
+    if (nrow(search_X) != L || length(search_Y) != 1L) {
+      stop("Unexpected Expedia search structure for srch_id = ", searches[j])
+    }
+
+    X_array[j, , ] <- rbind(t(as.matrix(search_X)), diag(L))
+    Y_array[j] <- search_Y
+  }
+
+  X[[i]] <- X_array
+  Y[[i]] <- Y_array
+}
+
+data_full <- list(X = X, Y = Y)
+data_em <- list(
+  X = X[seq_len(em_time)],
+  Y = Y[seq_len(em_time)]
+)
+
+beta_size <- length(covariate_names) + L
+initial_parameters <- list(
+  a_0 = matrix(0, nrow = beta_size, ncol = 1),
+  P_0 = diag(beta_size),
+  G = alpha * diag(beta_size),
+  W = (1 - alpha^2) * diag(beta_size),
+  Sigma = diag(L)
+)
+
+# -----------------------------------------------------------------------------
 # Figure 1: EM history and estimated correlation matrix
 # -----------------------------------------------------------------------------
 
-result_file <- file.path(
-  "data",
-  "inference_expedia_longEM_alpha_0.99_EP_p_3_mt_14.64_L_10_Time_50",
-  "inference_expedia_longEM_alpha_0.99_EP_p_3_mt_14.64_L_10_Time_50_EM.Rdata"
+expected_m_t <- mean(lengths(data_em$Y))
+name_init <- paste0("inference_expedia_longEM_alpha_", alpha, "_EP_p_")
+output_name <- sim_name(
+  name_init = name_init,
+  L = L,
+  Time = em_time,
+  p = length(covariate_names),
+  expected_m_t = expected_m_t
 )
-if (!file.exists(result_file)) {
-  stop("Expedia EM output not found: ", result_file)
+name_simulation <- output_name$name
+directory_name <- file.path("data", sub("/$", "", output_name$name_for_dir))
+dir.create(directory_name, recursive = TRUE, showWarnings = FALSE)
+result_file <- file.path(directory_name, paste0(name_simulation, "_EM.Rdata"))
+
+if (file.exists(result_file)) {
+  result_env <- new.env(parent = emptyenv())
+  load(result_file, envir = result_env)
+  if (!exists("EM_output_EP", envir = result_env, inherits = FALSE)) {
+    stop("The saved Expedia file does not contain EM_output_EP: ", result_file)
+  }
+  EM_output_EP <- result_env$EM_output_EP
+  if (length(EM_output_EP$log_likelihood_history) != em_iterations + 1L) {
+    stop(
+      "The saved Expedia EM run has ",
+      length(EM_output_EP$log_likelihood_history) - 1L,
+      " iterations instead of ", em_iterations,
+      ". Move or remove it before rerunning: ", result_file
+    )
+  }
+  message("Using the completed alpha = ", alpha, " EM run: ", result_file)
+} else {
+  EP_sampling_filter_to_use <- function(data, parameters) {
+    EP_sampling_filter(
+      data = data,
+      parameters = parameters,
+      EP_max_iterations = EP_max_iterations,
+      MC_samples = MC_samples,
+      tol = tol
+    )
+  }
+
+  set.seed(678)
+  EM_output_EP <- multinomial_probit_EM_Sigma(
+    data = data_em,
+    filter = EP_sampling_filter_to_use,
+    type = "nonstd",
+    initial_parameters = initial_parameters,
+    target_trace = L,
+    EM_iterations = em_iterations,
+    eps_sample_size = eps_sample_size,
+    log = list(TRUE, c(directory_name, name_simulation))
+  )
+  save(EM_output_EP, file = result_file)
 }
 
-result_env <- new.env(parent = emptyenv())
-load(result_file, envir = result_env)
-em_output <- result_env$EM_output_EP
+em_output <- EM_output_EP
 
 loglik <- as.numeric(em_output$log_likelihood_history)
 iteration <- seq_along(loglik) - 1L
@@ -79,7 +210,10 @@ loglik_df <- data.frame(
 p_loglik <- ggplot(loglik_df, aes(iteration, loglik)) +
   geom_line(color = "grey70", linewidth = 0.3) +
   geom_line(aes(y = moving_average), color = "#0072B2", linewidth = 0.75) +
-  scale_x_continuous(breaks = seq(0, 500, by = 100), expand = expansion(mult = c(0.01, 0.01))) +
+  scale_x_continuous(
+    breaks = seq(0, em_iterations, by = 100),
+    expand = expansion(mult = c(0.01, 0.01))
+  ) +
   labs(x = "EM iteration", y = "Log marginal likelihood") +
   theme_dmnp()
 
@@ -129,75 +263,21 @@ save_plot(training_plot, "expedia_training_Gio", width = 7.2, height = 3.15)
 # Figure 2: EP filtering coefficients over the full observation period
 # -----------------------------------------------------------------------------
 
-source(file.path("scripts", "utils.R"))
-source(file.path("scripts", "multinomial_probit_filter_ADF.R"))
-source(file.path("scripts", "multinomial_probit_filter_EP.R"))
-
-data_X <- read.csv(file.path("data", "data_X10_rand.csv"))
-data_Y <- read.csv(file.path("data", "data_Y10_rand.csv"))
-
-covariate_names <- c(
-  "prop_location_score1",
-  "log_price_usd",
-  "prop_starrating"
-)
-for (variable in covariate_names) {
-  data_X[[variable]] <- as.double(scale(data_X[[variable]]))
-}
-
-L <- 10L
-time_ids <- sort(unique(data_X$t))
-if (!identical(time_ids, seq.int(min(time_ids), max(time_ids)))) {
-  stop("The Expedia time index is not consecutive.")
-}
-
-X <- vector("list", length(time_ids))
-Y <- vector("list", length(time_ids))
-
-# This reproduces the ordering used by the original analysis script.
-set.seed(678)
-for (i in seq_along(time_ids)) {
-  current_X <- data_X[data_X$t == time_ids[i], , drop = FALSE]
-  current_Y <- data_Y[data_Y$t == time_ids[i], , drop = FALSE]
-  searches <- unique(current_X$srch_id)
-  searches <- sample(searches, length(searches), replace = FALSE)
-
-  X_array <- array(NA_real_, dim = c(length(searches), length(covariate_names) + L, L))
-  Y_array <- numeric(length(searches))
-
-  for (j in seq_along(searches)) {
-    search_X <- current_X[current_X$srch_id == searches[j], , drop = FALSE]
-    search_X <- search_X[order(search_X$position), covariate_names, drop = FALSE]
-    search_Y <- current_Y$booking_pos_sum[current_Y$srch_id == searches[j]]
-
-    if (nrow(search_X) != L || length(search_Y) != 1L) {
-      stop("Unexpected Expedia search structure for srch_id = ", searches[j])
-    }
-
-    X_array[j, , ] <- rbind(t(as.matrix(search_X)), diag(L))
-    Y_array[j] <- search_Y
-  }
-
-  X[[i]] <- X_array
-  Y[[i]] <- Y_array
-}
-
-beta_size <- length(covariate_names) + L
-alpha <- 0.99
 parameters <- list(
-  a_0 = matrix(0, nrow = beta_size, ncol = 1),
-  P_0 = diag(beta_size),
-  G = alpha * diag(beta_size),
-  W = (1 - alpha^2) * diag(beta_size),
+  a_0 = initial_parameters$a_0,
+  P_0 = initial_parameters$P_0,
+  G = initial_parameters$G,
+  W = initial_parameters$W,
   Sigma = Sigma_final
 )
 
+set.seed(679)
 filter_output <- EP_sampling_filter(
-  data = list(X = X, Y = Y),
+  data = data_full,
   parameters = parameters,
-  EP_max_iterations = 11,
-  MC_samples = 10000,
-  tol = 1e-3
+  EP_max_iterations = EP_max_iterations,
+  MC_samples = MC_samples,
+  tol = tol
 )
 
 # Drop the prior stored in row 1; the remaining rows correspond to Mar 1--Jun 30.
