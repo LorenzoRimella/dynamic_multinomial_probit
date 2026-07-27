@@ -22,7 +22,7 @@ dir.create("figures", showWarnings = FALSE)
 
 # Common Expedia configuration. The first 50 days are used to estimate Sigma;
 # filtering is subsequently performed over the complete observation period.
-alpha <- 0.9
+alpha <- 0.99
 em_time <- 50L
 em_iterations <- 500L
 EP_max_iterations <- 11L
@@ -134,7 +134,7 @@ initial_parameters <- list(
 )
 
 # -----------------------------------------------------------------------------
-# Figure 1: EM history and estimated correlation matrix
+# Figure 1: EM history and estimated covariance matrix
 # -----------------------------------------------------------------------------
 
 expected_m_t <- mean(lengths(data_em$Y))
@@ -187,7 +187,7 @@ if (file.exists(result_file)) {
     target_trace = L,
     EM_iterations = em_iterations,
     eps_sample_size = eps_sample_size,
-    log = list(TRUE, c(directory_name, name_simulation))
+    log = list(TRUE, c(paste0(directory_name, .Platform$file.sep), name_simulation))
   )
   save(EM_output_EP, file = result_file)
 }
@@ -218,16 +218,16 @@ p_loglik <- ggplot(loglik_df, aes(iteration, loglik)) +
   theme_dmnp()
 
 Sigma_final <- em_output$Sigma_history[dim(em_output$Sigma_history)[1], , ]
-correlation_final <- cov2cor(Sigma_final)
-correlation_df <- expand.grid(
-  row = seq_len(nrow(correlation_final)),
-  column = seq_len(ncol(correlation_final))
+Sigma_df <- expand.grid(
+  row = seq_len(nrow(Sigma_final)),
+  column = seq_len(ncol(Sigma_final))
 )
-correlation_df$correlation <- as.vector(correlation_final)
+Sigma_df$value <- as.vector(Sigma_final)
+Sigma_limit <- max(abs(Sigma_final))
 
-p_correlation <- ggplot(
-  correlation_df,
-  aes(column, row, fill = correlation)
+p_sigma <- ggplot(
+  Sigma_df,
+  aes(column, row, fill = value)
 ) +
   geom_tile(color = "white", linewidth = 0.25) +
   scale_fill_gradient2(
@@ -235,29 +235,42 @@ p_correlation <- ggplot(
     mid = "white",
     high = "#B2182B",
     midpoint = 0,
-    limits = c(-1, 1),
-    breaks = c(-1, -0.5, 0, 0.5, 1),
-    name = "Correlation"
+    limits = c(-Sigma_limit, Sigma_limit),
+    name = "Value"
   ) +
   scale_x_continuous(breaks = 1:10, expand = c(0, 0)) +
   scale_y_reverse(breaks = 1:10, expand = c(0, 0)) +
   coord_fixed() +
-  labs(x = "Position", y = "Position") +
-  theme_dmnp() +
+  labs(
+    title = expression(hat(Sigma)),
+    x = "Position",
+    y = "Position"
+  ) +
+  theme_dmnp(base_size = 8.5) +
   theme(
+    plot.title = element_text(hjust = 0.5, size = 9),
     axis.line = element_blank(),
     axis.ticks = element_blank(),
-    legend.key.height = grid::unit(0.34, "in"),
-    legend.title = element_text(size = 8),
-    legend.text = element_text(size = 7.5)
-  )
+    legend.key.height = grid::unit(0.3, "in"),
+    legend.title = element_text(size = 7.5),
+    legend.text = element_text(size = 7)
+)
 
-training_plot <- p_loglik + p_correlation +
+training_plot <- p_loglik + p_sigma +
   plot_layout(widths = c(1.55, 1)) +
   plot_annotation(tag_levels = "a") &
   theme(plot.tag = element_text(face = "bold", size = 10))
 
-save_plot(training_plot, "expedia_training_Gio", width = 7.2, height = 3.15)
+save_plot(
+  training_plot,
+  "expedia_training_Gio",
+  width = 7.2,
+  height = 3.15
+)
+
+if (identical(Sys.getenv("EXPEDIA_TRAINING_ONLY"), "1")) {
+  quit(save = "no", status = 0)
+}
 
 # -----------------------------------------------------------------------------
 # Figure 2: EP filtering coefficients over the full observation period
@@ -359,4 +372,9 @@ coefficient_plot <- p_attributes / p_positions +
   plot_annotation(tag_levels = "a") &
   theme(plot.tag = element_text(face = "bold", size = 10))
 
-save_plot(coefficient_plot, "expedia_coefficients_Gio", width = 7.2, height = 5.15)
+save_plot(
+  coefficient_plot,
+  "expedia_coefficients_Gio",
+  width = 7.2,
+  height = 5.15
+)
