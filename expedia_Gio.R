@@ -90,7 +90,6 @@ if (length(time_ids) < em_time) {
 X <- vector("list", length(time_ids))
 Y <- vector("list", length(time_ids))
 
-# This reproduces the ordering used by the original analysis script.
 set.seed(678)
 for (i in seq_along(time_ids)) {
   current_X <- data_X[data_X$t == time_ids[i], , drop = FALSE]
