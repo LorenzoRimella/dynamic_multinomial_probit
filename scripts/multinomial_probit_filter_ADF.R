@@ -148,8 +148,6 @@ ADF_sampling_filter <- function(data, parameters, MC_samples = 1000)
   L = dim(parameters$Sigma)[1]
   Time = length(data$Y)
   
-  V_minus_pre_computed = lapply(seq(0, L), function(i) V_minus_l(i,L))
-  
   a_history = array(NA, dim = c(Time+1, dim(parameters$a_0)[1]))
   P_history = array(NA, dim = c(Time+1, dim(parameters$a_0)[1], dim(parameters$a_0)[1]))
   
@@ -162,7 +160,6 @@ ADF_sampling_filter <- function(data, parameters, MC_samples = 1000)
   
   for(t in 1:Time)
   {
-    # print(t)
     ADF_prediction_parameters = ADF_prediction(a_history[t,], P_history[t,,], parameters)
     a_t_tm1 = ADF_prediction_parameters$a_t_tm1
     P_t_tm1 = ADF_prediction_parameters$P_t_tm1

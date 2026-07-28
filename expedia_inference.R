@@ -1,396 +1,379 @@
-rm(list=ls())
-# Set the directory to the path of the current script
+rm(list = ls())
 
-source("scripts/utils.R")
-source("scripts/model.R")
-source("scripts/multinomial_probit_filter_EP.R")
-source("scripts/multinomial_probit_filter_SMC.R")
-source("scripts/multinomial_probit_filter_ADF.R")
-source("scripts/multinomial_probit_filter_exact.R")
-source("scripts/multinomial_probit_gaussian_smoothing.R")
-source("scripts/multinomial_probit_EM_Sigma.R")
-
-library(tidyr)
-library(dplyr)
-library(transport)
-library(expm) # for sqrtm (matrix square root)
-
-library(future)
-library(future.apply)
-
-library(dplyr)
-library(tidyr)
-
-
-# LOAD DATA
-data_X = read.csv("data/data_X10_rand.csv")
-data_X$prop_location_score1 = as.double(scale(data_X$prop_location_score1))
-data_X$log_price_usd = as.double(scale(data_X$log_price_usd))
-data_X$prop_starrating = as.double(scale(data_X$prop_starrating))
-
-data_Y = read.csv("data/data_Y10_rand.csv")
-
-covariates_names = c( #"prop_brand_bool",   
-                      "prop_location_score1",
-                      #"promotion_flag",
-                      "log_price_usd",
-                      "prop_starrating")
-
-L = 10
-t_0  = min(data_X$t)
-Time = max(data_X$t)
-
-end   = 50 #Time - t_0 + 1
-
-X = list()
-Y = list()
-
-set.seed(678)
-
-percent_search = 1
-
-current_t = t_0
-for(i in 1:end)
-{
-  current_X = subset(data_X,    t == current_t)
-  current_Y = subset(data_Y, t == current_t)
-  searches  = unique(current_X$srch_id)
-  
-  n_searches = floor(percent_search*length(searches))
-  
-  if(n_searches<2){n_searches = 2}
-  
-  searches = sample(searches, n_searches, replace = FALSE, prob = NULL)
-  
-  X_array = array(NA, dim = c(length(searches), length(covariates_names)+L, L))
-  Y_array = array(NA, dim = c(length(searches)))
-  index_s=1
-  for(s in searches)
-  {
-    #print(s)
-    current_X_search = subset(current_X, srch_id == s)
-    current_X_search = current_X_search[order(current_X_search$position), ]
-    current_X_search = current_X_search[, covariates_names]
-    
-    current_Y_search = subset(current_Y, srch_id == s)
-    current_Y_search = current_Y_search$booking_pos_sum
-    
-    X_array[index_s,,] = rbind(t(as.matrix(current_X_search)), diag(rep(1, L)))
-    Y_array[index_s]   = current_Y_search
-    index_s = index_s +1
-  }
-  
-  X[[i]] = X_array
-  Y[[i]] = Y_array
-  
-  current_t = current_t+1
+args <- commandArgs(trailingOnly = FALSE)
+file_arg <- grep("^--file=", args, value = TRUE)
+script_dir <- if (length(file_arg)) {
+  dirname(normalizePath(sub("^--file=", "", file_arg[[1]])))
+} else {
+  getwd()
 }
-
-# NAME SIMULATION
-Time= length(X)
-
-p = dim(X[[1]])[2]-L # number of subject dependent covariate
-
-name_init="inference_expedia_EP_p_"
-
-expected_m_t = mean(sapply(seq(1,length(X)), function(i) return(dim(X[[i]])[1])))
-
-# CREATE AND PLOT DATA
-
-data_multinomial_probit = list(X = X, Y = Y)
-
-# Parameters
-beta_size = p + L
-
-# EM algorithm
-EM_iterations = 100
-
-loglikelihoods = array(NA, c(5, EM_iterations+1))
-Sigmas         = array(NA, c(5, EM_iterations+1, 10, 10))
-
-Time_data = 50
-counter = 1
-for(alpha_num in c(0.5, 0.75, 0.9, 0.95, 0.99)){
-  name_init = paste("inference_expedia_alpha_", alpha_num, sep="")
-  name_init = paste(name_init, "_EP_p_", sep="")
-  
-  expected_m_t = mean(sapply(seq(1,length(X)), function(i) return(dim(X[[i]])[1])))
-  
-  output_name = sim_name(name_init, L, Time, p, expected_m_t)
-  name_simulation = output_name$name
-  directory_name  = paste("data/", output_name$name_for_dir, sep ="")
-  print(directory_name)
-  load(paste(paste(directory_name, sep = "", name_simulation), sep = "", "_EM.Rdata"))
-  
-  loglikelihoods[counter,] = EM_output_EP$log_likelihood_history
-  Sigmas[counter,,,] = EM_output_EP$Sigma_history
-  
-  counter = counter +1
-  
-}
-
-plot(loglikelihoods[,EM_iterations+1], type = "l")
-
-alpha_num = 0.99
-
-name_init = paste("inference_expedia_longEM_alpha_", alpha_num, sep="")
-name_init = paste(name_init, "_EP_p_", sep="")
-
-expected_m_t = mean(sapply(seq(1,length(X)), function(i) return(dim(X[[i]])[1])))
-
-output_name = sim_name(name_init, L, 50, p, 14.64)
-name_simulation = output_name$name
-directory_name  = paste("data/", output_name$name_for_dir, sep ="")
-load(paste(paste(directory_name, sep = "", name_simulation), sep = "", "_EM.Rdata"))
-
-a_0 = matrix(rep(0, beta_size), ncol = 1)
-P_0 = diag(beta_size)
-
-G = alpha_num*diag(beta_size)
-
-W = (1-alpha_num*alpha_num)*P_0
-
-# Filter
-EP_max_iterations = 5
-MC_samples = 10000
-eps_sample_size = 10000
-tol = 10e-3
-
-target_trace = L
-
-EP_sampling_filter_to_use <- function(data, parameters)
-{
-  return(EP_sampling_filter(data, parameters, EP_max_iterations, MC_samples, tol))
-}
-
-Sigma_array <- EM_output_EP$Sigma_history
-loglik <- EM_output_EP$log_likelihood_history[1:101]
-
-# Convert array to a tidy data frame
-df <- as.data.frame.table(Sigma_array, responseName = "value")
-colnames(df) <- c("iteration", "i", "j", "value")
-
-df <- df %>%
-  mutate(
-    iteration = as.integer(iteration),
-    i = as.integer(i),
-    j = as.integer(j)
-  )
+setwd(script_dir)
 
 library(ggplot2)
-
-ggplot(df, aes(x = iteration, y = value)) +
-  geom_line(linewidth = 0.3) +
-  facet_grid(i ~ j) +
-  theme_minimal(base_size = 8) +
-  labs(
-    title = expression(Sigma ~ " history"),  # ← Greek Sigma
-    x = "Iteration",
-    y = expression(Sigma)
-  ) +
-  scale_x_continuous(breaks = c(0, 500)) +   # ← only show 0 and 500
-  theme(
-    panel.spacing = unit(0.5, "lines"),
-    strip.text = element_text(size = 6)
-  )
-
-log_df <- data.frame(
-  iteration = seq_along(EM_output_EP$log_likelihood_history),
-  log_likelihood = EM_output_EP$log_likelihood_history
-)
-
-plot1 =ggplot(log_df, aes(x = iteration, y = log_likelihood)) +
-  geom_line() +
-  theme_minimal(base_size = 5) +
-  labs(
-    x = "Iteration",
-    y = "log-likelihood"
-  ) +
-  scale_x_continuous(breaks = c(0, 500)) 
-
-
-# Extract the final 10x10 slice
-Sigma_final <- EM_output_EP$Sigma_history[501, , ]
-Sigma_cor = cov2cor(Sigma_final)
-
-# Create grid of positions
-positions <- expand.grid(row = 1:L, col = 1:L)
-
-# Flatten the matrix into a vector (row-major order)
-positions$value <- as.vector(Sigma_cor)
-
-# Plot heatmap
-plot2=ggplot(positions, aes(x = col, y = row, fill = value)) +
-  geom_tile(color = "grey80") +
-  scale_fill_viridis_c(name = "Value") +
-  coord_fixed() +
-  scale_x_continuous(breaks = 1:L) +
-  scale_y_reverse(breaks = 1:L) +  # reverse to match image() orientation
-  labs(
-    x = "Row",
-    y = "Col"
-  ) +
-  theme_minimal(base_size = 5) +
-  theme(
-    panel.grid = element_blank(),
-    axis.title = element_text(size = 5),
-    plot.title = element_text(hjust = 0.5)
-  )
-
-ggsave???
-
 library(patchwork)
 
-plot1 | plot2
+source(file.path("scripts", "utils.R"))
+source(file.path("scripts", "multinomial_probit_filter_ADF.R"))
+source(file.path("scripts", "multinomial_probit_filter_EP.R"))
+source(file.path("scripts", "multinomial_probit_gaussian_smoothing.R"))
+source(file.path("scripts", "multinomial_probit_EM_Sigma.R"))
 
+dir.create("figures", showWarnings = FALSE)
 
-L = 10
-t_0  = min(data_X$t)
-Time = max(data_X$t)
+# Common Expedia configuration. The first 50 days are used to estimate Sigma;
+# filtering is subsequently performed over the complete observation period.
+alpha <- 0.99
+em_time <- 50L
+em_iterations <- 500L
+EP_max_iterations <- 11L
+MC_samples <- 10000L
+eps_sample_size <- 10000L
+tol <- 1e-3
+L <- 10L
 
-end   = Time - t_0 + 1
-
-X = list()
-Y = list()
-
-set.seed(678)
-
-percent_search = 1
-
-current_t = t_0
-for(i in 1:end)
-{
-  current_X = subset(data_X,    t == current_t)
-  current_Y = subset(data_Y, t == current_t)
-  searches  = unique(current_X$srch_id)
-  
-  n_searches = floor(percent_search*length(searches))
-  
-  if(n_searches<2){n_searches = 2}
-  
-  searches = sample(searches, n_searches, replace = FALSE, prob = NULL)
-  
-  X_array = array(NA, dim = c(length(searches), length(covariates_names)+L, L))
-  Y_array = array(NA, dim = c(length(searches)))
-  index_s=1
-  for(s in searches)
-  {
-    #print(s)
-    current_X_search = subset(current_X, srch_id == s)
-    current_X_search = current_X_search[order(current_X_search$position), ]
-    current_X_search = current_X_search[, covariates_names]
-    
-    current_Y_search = subset(current_Y, srch_id == s)
-    current_Y_search = current_Y_search$booking_pos_sum
-    
-    X_array[index_s,,] = rbind(t(as.matrix(current_X_search)), diag(rep(1, L)))
-    Y_array[index_s]   = current_Y_search
-    index_s = index_s +1
-  }
-  
-  X[[i]] = X_array
-  Y[[i]] = Y_array
-  
-  current_t = current_t+1
+theme_dmnp <- function(base_size = 9) {
+  theme_classic(base_size = base_size) +
+    theme(
+      axis.text = element_text(color = "black"),
+      axis.line = element_line(linewidth = 0.35),
+      axis.ticks = element_line(linewidth = 0.35),
+      strip.background = element_blank(),
+      strip.text = element_text(face = "bold"),
+      plot.margin = margin(5.5, 6, 5.5, 6)
+    )
 }
 
-data_multinomial_probit = list(X = X, Y = Y)
-
-# Filter
-parameters = list(a_0 = a_0,
-                  P_0 = P_0,
-                  G   = G,
-                  W   = W,
-                  Sigma = EM_output_EP$Sigma_history[501, , ])
-
-EP_filter_sampler_output = EP_sampling_filter_to_use(data_multinomial_probit, parameters)
-
-a_hist <- EP_filter_sampler_output$a_history      # T x M matrix (means)
-P_hist <- EP_filter_sampler_output$P_history      # T x M x M array (covariances)
-
-T_ <- nrow(a_hist)
-M_ <- ncol(a_hist)
-
-# 1) Extract variances (diagonal) for each time step -> T x M matrix
-vars_mat <- t(sapply(1:T_, function(t) sapply(1:M_, function(i) P_hist[t, i,i])))
-
-
-# Optional: provide names for dimensions if missing
-if (is.null(colnames(a_hist))) colnames(a_hist) <- paste0("dim", seq_len(M_))
-colnames(vars_mat) <- colnames(a_hist)
-
-# If you have real time stamps, set them here; otherwise use 1:T_
-time_vec <- seq_len(T_)  # replace with your vector, e.g. time_vec <- EP_filter_sampler_output$time
-
-# Build tidy frame with mean, variance, sd, and 95% CI
-df <- as.data.frame(a_hist) |>
-  mutate(.time = time_vec) |>
-  pivot_longer(-.time, names_to = "dimension", values_to = "mean") |>
-  left_join(
-    as.data.frame(vars_mat) |>
-      mutate(.time = time_vec) |>
-      pivot_longer(-.time, names_to = "dimension", values_to = "var"),
-    by = c(".time", "dimension")
-  ) |>
-  mutate(
-    sd    = sqrt(pmax(var, 0)),           # guard tiny negative numeric noise
-    lower = mean - 1.96 * sd,
-    upper = mean + 1.96 * sd
+save_plot <- function(plot, stem, width, height) {
+  ggsave(
+    filename = file.path("figures", paste0(stem, ".pdf")),
+    plot = plot,
+    width = width,
+    height = height,
+    units = "in",
+    bg = "white"
   )
+  ggsave(
+    filename = file.path("figures", paste0(stem, ".png")),
+    plot = plot,
+    width = width,
+    height = height,
+    units = "in",
+    dpi = 300,
+    bg = "white"
+  )
+}
 
-# Assuming you already have df built (with .time, dimension, mean, lower, upper, etc.)
-first_three <- colnames(a_hist)[1:3]
-remaining_dims <- setdiff(colnames(a_hist), first_three)
+# -----------------------------------------------------------------------------
+# Prepare the Expedia data once for both EM estimation and full-period filtering
+# -----------------------------------------------------------------------------
 
-# ---- 1️⃣ Combined plot for the first 3 dimensions ----
-df_first3 <- df %>%
-  filter(dimension %in% first_three) %>%
-  mutate(
-    dimension = recode(dimension,
-                       "dim1" = "prop_location_score1",
-                       "dim2" = "log_price_usd",
-                       "dim3" = "prop_starrating"
+data_X <- read.csv(file.path("data", "data_X10_rand.csv"))
+data_Y <- read.csv(file.path("data", "data_Y10_rand.csv"))
+
+covariate_names <- c(
+  "prop_location_score1",
+  "log_price_usd",
+  "prop_starrating"
+)
+for (variable in covariate_names) {
+  data_X[[variable]] <- as.double(scale(data_X[[variable]]))
+}
+
+time_ids <- sort(unique(data_X$t))
+if (!identical(time_ids, seq.int(min(time_ids), max(time_ids)))) {
+  stop("The Expedia time index is not consecutive.")
+}
+if (length(time_ids) < em_time) {
+  stop("Fewer than ", em_time, " Expedia days are available.")
+}
+
+X <- vector("list", length(time_ids))
+Y <- vector("list", length(time_ids))
+
+set.seed(678)
+for (i in seq_along(time_ids)) {
+  current_X <- data_X[data_X$t == time_ids[i], , drop = FALSE]
+  current_Y <- data_Y[data_Y$t == time_ids[i], , drop = FALSE]
+  searches <- unique(current_X$srch_id)
+  searches <- sample(searches, length(searches), replace = FALSE)
+
+  X_array <- array(NA_real_, dim = c(length(searches), length(covariate_names) + L, L))
+  Y_array <- numeric(length(searches))
+
+  for (j in seq_along(searches)) {
+    search_X <- current_X[current_X$srch_id == searches[j], , drop = FALSE]
+    search_X <- search_X[order(search_X$position), covariate_names, drop = FALSE]
+    search_Y <- current_Y$booking_pos_sum[current_Y$srch_id == searches[j]]
+
+    if (nrow(search_X) != L || length(search_Y) != 1L) {
+      stop("Unexpected Expedia search structure for srch_id = ", searches[j])
+    }
+
+    X_array[j, , ] <- rbind(t(as.matrix(search_X)), diag(L))
+    Y_array[j] <- search_Y
+  }
+
+  X[[i]] <- X_array
+  Y[[i]] <- Y_array
+}
+
+data_full <- list(X = X, Y = Y)
+data_em <- list(
+  X = X[seq_len(em_time)],
+  Y = Y[seq_len(em_time)]
+)
+
+beta_size <- length(covariate_names) + L
+initial_parameters <- list(
+  a_0 = matrix(0, nrow = beta_size, ncol = 1),
+  P_0 = diag(beta_size),
+  G = alpha * diag(beta_size),
+  W = (1 - alpha^2) * diag(beta_size),
+  Sigma = diag(L)
+)
+
+# -----------------------------------------------------------------------------
+# Figure 1: EM history and estimated covariance matrix
+# -----------------------------------------------------------------------------
+
+expected_m_t <- mean(lengths(data_em$Y))
+name_init <- paste0("inference_expedia_longEM_alpha_", alpha, "_EP_p_")
+output_name <- sim_name(
+  name_init = name_init,
+  L = L,
+  Time = em_time,
+  p = length(covariate_names),
+  expected_m_t = expected_m_t
+)
+name_simulation <- output_name$name
+directory_name <- file.path("data", sub("/$", "", output_name$name_for_dir))
+dir.create(directory_name, recursive = TRUE, showWarnings = FALSE)
+result_file <- file.path(directory_name, paste0(name_simulation, "_EM.Rdata"))
+
+if (file.exists(result_file)) {
+  result_env <- new.env(parent = emptyenv())
+  load(result_file, envir = result_env)
+  if (!exists("EM_output_EP", envir = result_env, inherits = FALSE)) {
+    stop("The saved Expedia file does not contain EM_output_EP: ", result_file)
+  }
+  EM_output_EP <- result_env$EM_output_EP
+  if (length(EM_output_EP$log_likelihood_history) != em_iterations + 1L) {
+    stop(
+      "The saved Expedia EM run has ",
+      length(EM_output_EP$log_likelihood_history) - 1L,
+      " iterations instead of ", em_iterations,
+      ". Move or remove it before rerunning: ", result_file
     )
+  }
+  message("Using the completed alpha = ", alpha, " EM run: ", result_file)
+} else {
+  EP_sampling_filter_to_use <- function(data, parameters) {
+    EP_sampling_filter(
+      data = data,
+      parameters = parameters,
+      EP_max_iterations = EP_max_iterations,
+      MC_samples = MC_samples,
+      tol = tol
+    )
+  }
+
+  set.seed(678)
+  EM_output_EP <- multinomial_probit_EM_Sigma(
+    data = data_em,
+    filter = EP_sampling_filter_to_use,
+    type = "nonstd",
+    initial_parameters = initial_parameters,
+    target_trace = L,
+    EM_iterations = em_iterations,
+    eps_sample_size = eps_sample_size,
+    log = list(TRUE, c(paste0(directory_name, .Platform$file.sep), name_simulation))
   )
+  save(EM_output_EP, file = result_file)
+}
 
-df_first3$.time <- as.Date(df_first3$.time, origin = "2013-02-27")
+em_output <- EM_output_EP
 
-p_color <- ggplot(df_first3, aes(.time, mean, color = dimension, fill = dimension)) +
-  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.15, color = NA) +
-  geom_line(linewidth = 0.6) +
-  labs(
-    x = "",
-    y = expression(beta[t]),
-    color = "Dimension",
-    fill = "Dimension"
+loglik <- as.numeric(em_output$log_likelihood_history)
+iteration <- seq_along(loglik) - 1L
+window <- 25L
+moving_average <- vapply(seq_along(loglik), function(i) {
+  mean(loglik[max(1L, i - window + 1L):i], na.rm = TRUE)
+}, numeric(1))
+
+loglik_df <- data.frame(
+  iteration = iteration,
+  loglik = loglik,
+  moving_average = moving_average
+)
+
+p_loglik <- ggplot(loglik_df, aes(iteration, loglik)) +
+  geom_line(color = "grey70", linewidth = 0.3) +
+  geom_line(aes(y = moving_average), color = "#0072B2", linewidth = 0.75) +
+  scale_x_continuous(
+    breaks = seq(0, em_iterations, by = 100),
+    expand = expansion(mult = c(0.01, 0.01))
   ) +
-  theme_minimal(base_size = 12)
+  labs(x = "EM iteration", y = "Log marginal likelihood") +
+  theme_dmnp()
 
-p_color  # show the combined plot
+Sigma_final <- em_output$Sigma_history[dim(em_output$Sigma_history)[1], , ]
+Sigma_df <- expand.grid(
+  row = seq_len(nrow(Sigma_final)),
+  column = seq_len(ncol(Sigma_final))
+)
+Sigma_df$value <- as.vector(Sigma_final)
+Sigma_limit <- max(abs(Sigma_final))
 
+p_sigma <- ggplot(
+  Sigma_df,
+  aes(column, row, fill = value)
+) +
+  geom_tile(color = "white", linewidth = 0.25) +
+  scale_fill_gradient2(
+    low = "#2166AC",
+    mid = "white",
+    high = "#B2182B",
+    midpoint = 0,
+    limits = c(-Sigma_limit, Sigma_limit),
+    name = "Value"
+  ) +
+  scale_x_continuous(breaks = 1:10, expand = c(0, 0)) +
+  scale_y_reverse(breaks = 1:10, expand = c(0, 0)) +
+  coord_fixed() +
+  labs(
+    title = expression(hat(Sigma)),
+    x = "Position",
+    y = "Position"
+  ) +
+  theme_dmnp(base_size = 8.5) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 9),
+    axis.line = element_blank(),
+    axis.ticks = element_blank(),
+    legend.key.height = grid::unit(0.3, "in"),
+    legend.title = element_text(size = 7.5),
+    legend.text = element_text(size = 7)
+)
 
-# ---- 2️⃣ Faceted plots for remaining dimensions ----
-pos_names <- paste0("pos", seq_along(remaining_dims))
-rename_map <- setNames(pos_names, remaining_dims)
+training_plot <- p_loglik + p_sigma +
+  plot_layout(widths = c(1.55, 1)) +
+  plot_annotation(tag_levels = "a") &
+  theme(plot.tag = element_text(face = "bold", size = 10))
 
-df_rest <- df %>%
-  filter(dimension %in% remaining_dims) %>%
-  mutate(
-    dimension = recode(dimension, !!!rename_map),
-    dimension = factor(dimension, levels = pos_names)
-  )
+save_plot(
+  training_plot,
+  "expedia_training",
+  width = 7.2,
+  height = 3.15
+)
 
+if (identical(Sys.getenv("EXPEDIA_TRAINING_ONLY"), "1")) {
+  quit(save = "no", status = 0)
+}
 
-df_rest$.time <- as.Date(df_rest$.time, origin = "2013-02-27")
+# -----------------------------------------------------------------------------
+# Figure 2: EP filtering coefficients over the full observation period
+# -----------------------------------------------------------------------------
 
-p_facet <- ggplot(df_rest, aes(.time, mean)) +
-  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.2) +
-  geom_line() +
-  facet_wrap(~ dimension, scales = "free_y", ncol = 5) +
+parameters <- list(
+  a_0 = initial_parameters$a_0,
+  P_0 = initial_parameters$P_0,
+  G = initial_parameters$G,
+  W = initial_parameters$W,
+  Sigma = Sigma_final
+)
+
+set.seed(679)
+filter_output <- EP_sampling_filter(
+  data = data_full,
+  parameters = parameters,
+  EP_max_iterations = EP_max_iterations,
+  MC_samples = MC_samples,
+  tol = tol
+)
+
+# Drop the prior stored in row 1; the remaining rows correspond to Mar 1--Jun 30.
+a_hist <- filter_output$a_history[-1, , drop = FALSE]
+P_hist <- filter_output$P_history[-1, , , drop = FALSE]
+dates <- as.Date("2013-03-01") + time_ids
+
+coefficient_labels <- c(
+  "Location score",
+  "Log price",
+  "Star rating",
+  paste("Position", 1:10)
+)
+
+sd_hist <- t(vapply(
+  seq_len(nrow(P_hist)),
+  function(i) sqrt(pmax(diag(P_hist[i, , ]), 0)),
+  numeric(beta_size)
+))
+
+coefficient_df <- data.frame(
+  date = rep(dates, times = beta_size),
+  coefficient = factor(
+    rep(coefficient_labels, each = length(dates)),
+    levels = coefficient_labels
+  ),
+  mean = as.vector(a_hist),
+  sd = as.vector(sd_hist)
+)
+coefficient_df$lower <- coefficient_df$mean - 1.96 * coefficient_df$sd
+coefficient_df$upper <- coefficient_df$mean + 1.96 * coefficient_df$sd
+
+month_breaks <- seq(as.Date("2013-03-01"), as.Date("2013-06-01"), by = "month")
+attribute_df <- coefficient_df[coefficient_df$coefficient %in% coefficient_labels[1:3], ]
+position_df <- coefficient_df[coefficient_df$coefficient %in% coefficient_labels[4:13], ]
+
+attribute_palette <- c(
+  "Location score" = "#009E73",
+  "Log price" = "#D55E00",
+  "Star rating" = "#0072B2"
+)
+
+p_attributes <- ggplot(
+  attribute_df,
+  aes(date, mean, color = coefficient, fill = coefficient)
+) +
+  geom_hline(yintercept = 0, color = "grey55", linewidth = 0.3, linetype = "dashed") +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.16, color = NA) +
+  geom_line(linewidth = 0.55) +
+  facet_wrap(~coefficient, nrow = 1) +
+  scale_color_manual(values = attribute_palette, guide = "none") +
+  scale_fill_manual(values = attribute_palette, guide = "none") +
+  scale_x_date(
+    limits = range(dates),
+    breaks = month_breaks,
+    date_labels = "%b",
+    expand = expansion(mult = c(0.01, 0.01))
+  ) +
+  labs(x = NULL, y = expression(beta[t])) +
+  theme_dmnp()
+
+p_positions <- ggplot(position_df, aes(date, mean)) +
+  geom_hline(yintercept = 0, color = "grey55", linewidth = 0.3, linetype = "dashed") +
+  geom_ribbon(aes(ymin = lower, ymax = upper), fill = "#8DA0CB", alpha = 0.25) +
+  geom_line(color = "#2F4B7C", linewidth = 0.5) +
+  facet_wrap(~coefficient, ncol = 5) +
+  scale_x_date(
+    limits = range(dates),
+    breaks = month_breaks,
+    date_labels = "%b",
+    expand = expansion(mult = c(0.01, 0.01))
+  ) +
   labs(x = "Date", y = expression(beta[t])) +
-  theme_minimal(base_size = 12)
+  theme_dmnp(base_size = 8.5) +
+  theme(axis.text.x = element_text(size = 7.5))
 
-p_facet  # show the faceted plot
+coefficient_plot <- p_attributes / p_positions +
+  plot_layout(heights = c(1, 1.75)) +
+  plot_annotation(tag_levels = "a") &
+  theme(plot.tag = element_text(face = "bold", size = 10))
 
-ggsave("figures/expedia123.png", p_color, width = 12, height = 3, dpi = 300)
-ggsave("figures/expediarest.png", p_facet, width = 12, height = 6, dpi = 300)
+save_plot(
+  coefficient_plot,
+  "expedia_coefficients",
+  width = 7.2,
+  height = 5.15
+)

@@ -1,14 +1,13 @@
 library(ggplot2)
 
-# This script only reads saved EM output; it does not rerun simulations or EM.
-# Replace 60 with 50 here if the final recovery experiment is rerun at T = 50.
+# This script reads the saved EM output without rerunning the experiment.
 times <- c(10L, 30L, 60L)
 rolling_window <- 10L
 tail_window <- 20L
 
 result_file <- function(Time) {
   prefix <- sprintf(
-    "parallel_Sigma_trace_AGL_repeat_EM_p_9_mt_15_L_3_Time_%d",
+    "Sigma_recovery_p_9_mt_15_L_3_Time_%d",
     Time
   )
   file.path(

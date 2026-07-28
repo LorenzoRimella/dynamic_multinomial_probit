@@ -1,5 +1,4 @@
-rm(list=ls())
-# Set the directory to the path of the current script
+rm(list = ls())
 
 args <- commandArgs(trailingOnly = FALSE)
 script_path <- sub("--file=", "", args[grep("--file=", args)])
@@ -17,19 +16,18 @@ source("../scripts/multinomial_probit_filter_SMC.R")
 
 source("../scripts/multinomial_probit_filter_ADF.R")
 source("../scripts/multinomial_probit_filter_exact.R")
-source("../scripts/multinomial_probit_gaussian_smoothing.R")
 
-# SET UP THE SIMULATION
-L = 3 # number of choices
-Time= 10 # number of time steps
+# Simulation setting
+L = 3
+Time = 10
 
-p_X = 2 # number of subject dependent covariates
-p_Y = 3 # number of choice dependent covariates
+p_X = 2
+p_Y = 3
 p = p_X*L + p_Y
 
 expected_m_t = 10
 
-name_init="full_parallel_filt_smoot_lik_p_"
+name_init = "filtering_comparison_p_"
 
 output_name = sim_name(name_init, L, Time, p, expected_m_t)
 name_simulation = output_name$name
@@ -41,8 +39,6 @@ if (!dir.exists(directory_name)) {
 }
 
 set.seed(12345)
-
-# GENERATE PARAMETERS
 
 beta_size = p + L
 
@@ -59,8 +55,6 @@ Sigma = matrix(c(1.6, -0.1, 0,
                  0, 0.1, 1.2),
                nrow = L, byrow = TRUE)
 
-# GENERATE DATA
-
 parameters = list(a_0 = a_0, P_0 = P_0, G = G, W = W, Sigma = Sigma)
 
 hyperparameters = list(lambda_M = expected_m_t, N_max = 4*expected_m_t, Y_max = 20, prediction_bool= FALSE)
@@ -70,14 +64,11 @@ Y_cov = matrix(runif(hyperparameters$Y_max*p_Y, -0.5, 0.5), nrow = hyperparamete
 
 data_multinomial_probit = simulator(X_cov, Y_cov, parameters, hyperparameters, Time)
 
-# COMPUTE FILTERS
 EP_max_iterations = 11
-tol= 1e-3
+tol = 1e-3
 MC_samples = 1e4
 
 sliding_window = Time + 1
-
-# FIXED COVARIATES; RESIMULATED STATES AND RESPONSES ACROSS REPLICATES
 
 library(future)
 library(future.apply)
@@ -92,67 +83,53 @@ if (is.na(slurm_cpus) || slurm_cpus < 1) {
 
 message("Using ", slurm_cpus, " workers for parallel processing.")
 
-# Use multisession (safer on HPC clusters)
 plan(multisession, workers = slurm_cpus)
 
 n_replicates = 96
 
 results <- future_lapply(1:n_replicates, function(repl) {
   set.seed(12345+repl)
-  print(repl)
+  message("Replication ", repl)
 
   data_multinomial_probit_repl = simulator_given_covariates(data_multinomial_probit, parameters, hyperparameters, Time)
 
   EP_filter_sampler_output   = EP_sampling_filter(data_multinomial_probit_repl, parameters, EP_max_iterations, MC_samples, tol)
-  EP_smoother_sampler_output = Gaussian_smoother(data_multinomial_probit_repl, parameters, EP_filter_sampler_output)
-
   ADF_filter_sampler_output   = ADF_sampling_filter(data_multinomial_probit_repl, parameters, MC_samples)
-  ADF_smoother_sampler_output = Gaussian_smoother(data_multinomial_probit_repl, parameters, ADF_filter_sampler_output)
 
   exact_filter_sampler_output   = exact_sampling_filter(data_multinomial_probit_repl, parameters, sliding_window, MC_samples)
-  exact_smoother_sampler_output = Gaussian_smoother(data_multinomial_probit_repl, parameters, exact_filter_sampler_output)
 
   SMC_filter_sampler_output   = SMC_sampling_filter(data_multinomial_probit_repl, parameters, MC_samples)
-  SMC_smoother_sampler_output = Gaussian_smoother(data_multinomial_probit_repl, parameters, SMC_filter_sampler_output)
 
   df_EP = data.frame(
     replicate = repl,
     type = "EP",
     filter_running_time = EP_filter_sampler_output$running_time,
-    smoother_running_time = EP_smoother_sampler_output$running_time,
     log_likelihood = EP_filter_sampler_output$log_likelihood,
-    filter_distance_from_exact = mean_wasserstein_sampling(EP_filter_sampler_output$sampling_history, exact_filter_sampler_output$sampling_history),
-    smoothing_distance_from_exact = mean_wasserstein_gaussian(EP_smoother_sampler_output, exact_smoother_sampler_output)
+    filter_distance_from_reference = mean_wasserstein_sampling(EP_filter_sampler_output$sampling_history, exact_filter_sampler_output$sampling_history)
   )
 
   df_ADF = data.frame(
     replicate = repl,
     type = "ADF",
     filter_running_time = ADF_filter_sampler_output$running_time,
-    smoother_running_time = ADF_smoother_sampler_output$running_time,
     log_likelihood = ADF_filter_sampler_output$log_likelihood,
-    filter_distance_from_exact = mean_wasserstein_sampling(ADF_filter_sampler_output$sampling_history, exact_filter_sampler_output$sampling_history),
-    smoothing_distance_from_exact = mean_wasserstein_gaussian(ADF_smoother_sampler_output, exact_smoother_sampler_output)
+    filter_distance_from_reference = mean_wasserstein_sampling(ADF_filter_sampler_output$sampling_history, exact_filter_sampler_output$sampling_history)
   )
 
   df_SMC = data.frame(
     replicate = repl,
     type = "SMC",
     filter_running_time = SMC_filter_sampler_output$running_time,
-    smoother_running_time = SMC_smoother_sampler_output$running_time,
     log_likelihood = SMC_filter_sampler_output$log_likelihood,
-    filter_distance_from_exact = mean_wasserstein_sampling(SMC_filter_sampler_output$sampling_history, exact_filter_sampler_output$sampling_history),
-    smoothing_distance_from_exact = mean_wasserstein_gaussian(SMC_smoother_sampler_output, exact_smoother_sampler_output)
+    filter_distance_from_reference = mean_wasserstein_sampling(SMC_filter_sampler_output$sampling_history, exact_filter_sampler_output$sampling_history)
   )
 
   df_exact = data.frame(
     replicate = repl,
     type = "exact",
     filter_running_time = exact_filter_sampler_output$running_time,
-    smoother_running_time = exact_smoother_sampler_output$running_time,
     log_likelihood = exact_filter_sampler_output$log_likelihood,
-    filter_distance_from_exact = 0,
-    smoothing_distance_from_exact = 0
+    filter_distance_from_reference = 0
   )
 
   return(list(df_EP, df_ADF, df_SMC, df_exact))
@@ -160,5 +137,4 @@ results <- future_lapply(1:n_replicates, function(repl) {
 
 data_frame_output <- do.call(rbind, unlist(results, recursive = FALSE))
 save(data_frame_output, file = paste0(directory_name, name_simulation, "_data.Rdata"))
-
-save(data_multinomial_probit, file    = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_data_multinomial_probit_single.Rdata"))
+plan(sequential)

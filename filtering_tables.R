@@ -21,7 +21,7 @@ summarise_filtering_results <- function(file, reference_type) {
       type,
       filter_time = filter_running_time,
       delta_log_likelihood = log_likelihood - reference_log_likelihood,
-      mean_marginal_W2 = filter_distance_from_exact
+      mean_marginal_W2 = filter_distance_from_reference
     )
 
   numeric_summary <- results %>%
@@ -58,24 +58,24 @@ summarise_filtering_results <- function(file, reference_type) {
 
 summary_T10_m10 <- summarise_filtering_results(
   paste0(
-    "data/full_parallel_filt_smoot_lik_p_9_mt_10_L_3_Time_10/",
-    "full_parallel_filt_smoot_lik_p_9_mt_10_L_3_Time_10_data.Rdata"
+    "data/filtering_comparison_p_9_mt_10_L_3_Time_10/",
+    "filtering_comparison_p_9_mt_10_L_3_Time_10_data.Rdata"
   ),
   reference_type = "exact"
 )
 
 summary_T50_m10 <- summarise_filtering_results(
   paste0(
-    "data/full_parallel_filt_smoot_lik_p_9_mt_10_L_3_Time_50/",
-    "full_parallel_filt_smoot_lik_p_9_mt_10_L_3_Time_50_data.Rdata"
+    "data/filtering_comparison_p_9_mt_10_L_3_Time_50/",
+    "filtering_comparison_p_9_mt_10_L_3_Time_50_data.Rdata"
   ),
   reference_type = "ADF"
 )
 
 summary_T50_m50 <- summarise_filtering_results(
   paste0(
-    "data/full_parallel_filt_smoot_lik_p_9_mt_50_L_3_Time_50/",
-    "full_parallel_filt_smoot_lik_p_9_mt_50_L_3_Time_50_data.Rdata"
+    "data/filtering_comparison_p_9_mt_50_L_3_Time_50/",
+    "filtering_comparison_p_9_mt_50_L_3_Time_50_data.Rdata"
   ),
   reference_type = "ADF"
 )

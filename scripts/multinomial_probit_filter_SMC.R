@@ -4,8 +4,6 @@ SMC_sampling_filter <- function(data, parameters, MC_samples)
   L = dim(parameters$Sigma)[1]
   Time = length(data$Y)
   
-  V_minus_pre_computed = lapply(seq(0, L), function(i) V_minus_l(i,L))
-  
   a_history = array(NA, dim = c(Time+1, dim(parameters$a_0)[1]))
   P_history = array(NA, dim = c(Time+1, dim(parameters$a_0)[1], dim(parameters$a_0)[1]))
   
@@ -25,22 +23,37 @@ SMC_sampling_filter <- function(data, parameters, MC_samples)
     x_t = data$X[[t]]
     
     m_t = dim(x_t)[1]
-    
-    prod_likelihood <-function(s)
-    {
-      prod(sapply(seq(1, m_t), function(i) Phi(t(t((X_minus_l(x_t[i,,], y_t[i], L) %*% sampling_prediction)[,s])),
-                                       V_minus_l(y_t[i], L) %*% parameters$Sigma %*% t(V_minus_l(y_t[i], L)))))
+
+    transformed_X = lapply(seq_len(m_t), function(i) {
+      X_minus_l(x_t[i,,], y_t[i], L)
+    })
+    transformed_Sigma = lapply(seq_len(m_t), function(i) {
+      V_i = V_minus_l(y_t[i], L)
+      V_i %*% parameters$Sigma %*% t(V_i)
+    })
+
+    particle_log_weight <- function(s) {
+      sum(vapply(seq_len(m_t), function(i) {
+        probability = Phi(
+          transformed_X[[i]] %*% sampling_prediction[, s, drop = FALSE],
+          transformed_Sigma[[i]]
+        )
+        log(pmax(probability, .Machine$double.xmin))
+      }, numeric(1)))
     }
-    
-    #start_time <- Sys.time()
-    weights = sapply(seq(1, MC_samples), function(s) prod_likelihood(s))
-    #print(as.numeric(Sys.time() - start_time))
-    
-    weights_norm = weights/sum(weights)
-    
-    log_likelihood = log_likelihood + log(mean(weights))
-    
-    ancestors = sample(seq(1, MC_samples), MC_samples, replace = TRUE, prob = weights_norm)
+
+    log_weights = vapply(seq_len(MC_samples), particle_log_weight, numeric(1))
+    max_log_weight = max(log_weights)
+    if (!is.finite(max_log_weight)) {
+      stop("All SMC particle weights are numerically zero at time ", t, ".")
+    }
+    scaled_weights = exp(log_weights - max_log_weight)
+    weights_norm = scaled_weights / sum(scaled_weights)
+
+    log_likelihood = log_likelihood +
+      max_log_weight + log(mean(scaled_weights))
+
+    ancestors = sample.int(MC_samples, MC_samples, replace = TRUE, prob = weights_norm)
     
     sampling_history[t+1,,] = sampling_prediction[,ancestors]
     
@@ -54,6 +67,6 @@ SMC_sampling_filter <- function(data, parameters, MC_samples)
   
   return(list(log_likelihood = log_likelihood, 
               a_history = a_history, P_history = P_history,
-              sampling_history = sampling_history[2:(Time+1),,],
+              sampling_history = sampling_history[2:(Time+1),,, drop = FALSE],
               running_time = as.numeric(Sys.time() - start_time, units = "secs")))
 }

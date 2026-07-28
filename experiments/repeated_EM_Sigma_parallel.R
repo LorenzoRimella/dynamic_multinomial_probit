@@ -1,5 +1,4 @@
-rm(list=ls())
-# Set the directory to the path of the current script
+rm(list = ls())
 
 args <- commandArgs(trailingOnly = FALSE)
 script_path <- sub("--file=", "", args[grep("--file=", args)])
@@ -13,37 +12,28 @@ if (length(script_path)) {
 source("../scripts/utils.R")
 source("../scripts/model.R")
 source("../scripts/multinomial_probit_filter_EP.R")
-source("../scripts/multinomial_probit_filter_SMC.R")
-
 source("../scripts/multinomial_probit_filter_ADF.R")
-source("../scripts/multinomial_probit_filter_exact.R")
-source("../scripts/multinomial_probit_gaussian_smoothing.R")
 source("../scripts/multinomial_probit_gaussian_smoothing.R")
 source("../scripts/multinomial_probit_EM_Sigma.R")
-
-library(tidyr)
-library(dplyr)
-library(transport)
-library(expm) # for sqrtm (matrix square root)
 
 library(future)
 library(future.apply)
 
-library(dplyr)
-library(tidyr)
+# Simulation setting
+run_args <- commandArgs(trailingOnly = TRUE)
+if (length(run_args) != 1L || !grepl("^(10|30|60)$", run_args[[1L]])) {
+  stop("Usage: Rscript repeated_EM_Sigma_parallel.R {10|30|60}")
+}
 
+L = 3
+Time = as.integer(run_args[[1L]])
 
-# SET UP THE SIMULATION
-L = 3 # number of choices
-Time= 30 # number of time steps change it to 10 for the other simulation
-
-p_X = 2 # number of subject dependent covariates
-p_Y = 3 # number of choice dependent covariates
-p = p_X*L + p_Y
+p_X = 2
+p_Y = 3
+p = p_X * L + p_Y
 
 expected_m_t = 15
-
-name_init="parallel_Sigma_trace_AGL_repeat_EM_p_"
+name_init = "Sigma_recovery_p_"
 
 output_name = sim_name(name_init, L, Time, p, expected_m_t)
 name_simulation = output_name$name
@@ -56,8 +46,6 @@ if (!dir.exists(directory_name)) {
 
 set.seed(678)
 
-# GENERATE PARAMETERS
-
 beta_size = p + L
 
 a_0 = matrix(rep(0, beta_size), ncol = 1)
@@ -68,18 +56,10 @@ G = alpha*diag(beta_size)
 
 W = (1-alpha*alpha)*P_0
 
-Sigma = diag(L)
-Sigma[1,1] = 1.6
-Sigma[2,2] = 0.2
-Sigma[3,3] = 1.2
-for(i in 2:L)
-{
-  sign = sample(c(-1, 1), 1)
-  Sigma[i,i-1] = sign*0.1
-  Sigma[i-1,i] = sign*0.1
-}
-
-# GENERATE DATA
+Sigma = matrix(c(1.6, -0.1, 0,
+                 -0.1, 0.2, 0.1,
+                 0, 0.1, 1.2),
+               nrow = L, byrow = TRUE)
 
 parameters = list(a_0 = a_0, P_0 = P_0, G = G, W = W, Sigma = Sigma)
 
@@ -90,16 +70,13 @@ Y_cov = matrix(runif(hyperparameters$Y_max*p_Y, -0.5, 0.5), nrow = hyperparamete
 
 data_multinomial_probit = simulator(X_cov, Y_cov, parameters, hyperparameters, Time)
 
-# EM algorithm
 EM_iterations = 200
 
 n_samples = 48
 
 Sigma_repeated_sample  = array(NA, dim = c(n_samples, L, L))
 log_likelihood_history = array(NA, dim = c(n_samples, EM_iterations+1))
-log_likelihood_true    = array(NA, dim = c(n_samples))
 
-# Filter
 EP_max_iterations = 11
 MC_samples = 10000
 eps_sample_size = 10000
@@ -124,10 +101,10 @@ message("Using ", slurm_cpus, " workers for parallel processing.")
 # Use multisession (safer on HPC clusters)
 plan(multisession, workers = slurm_cpus)
 
-results <- future_lapply(1:n_samples, function(i) {
+results <- future_lapply(seq_len(n_samples), function(i) {
     
   set.seed(678+i)
-  print(i)
+  message("Replication ", i)
   
   initial_parameters = list(a_0 = parameters$a_0, P_0 = parameters$P_0, 
                             G = parameters$G, 
@@ -140,23 +117,20 @@ results <- future_lapply(1:n_samples, function(i) {
                                                 EP_sampling_filter_to_use, type = "nonstd",
                                                 initial_parameters, target_trace,
                                                 EM_iterations, eps_sample_size, 
-                                                log = c(FALSE, NA))
-  
-  EP_filter_output_truth   = EP_sampling_filter_to_use(data_multinomial_probit_next, parameters)
+                                                log = list(FALSE, c(NA, NA)))
   
   return(list(EM_output_EP$Sigma_history[EM_iterations+1,,], 
-              EM_output_EP$log_likelihood_history, 
-              EP_filter_output_truth$log_likelihood))
+              EM_output_EP$log_likelihood_history))
   
-}, future.seed=TRUE)
+}, future.seed = TRUE)
+
+plan(sequential)
 
 for(i in 1:n_samples)
 {
   Sigma_repeated_sample[i,,] = results[[i]][[1]]
   log_likelihood_history[i,] = results[[i]][[2]]
-  log_likelihood_true[i] = results[[i]][[3]]
 }
 
 save(Sigma_repeated_sample,  file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_Sigma_repeated_sample.Rdata"))
 save(log_likelihood_history, file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_log_likelihood_history.Rdata"))
-save(log_likelihood_true,    file = paste(paste(directory_name, sep = "", name_simulation), sep = "", "_log_likelihood_true.Rdata"))

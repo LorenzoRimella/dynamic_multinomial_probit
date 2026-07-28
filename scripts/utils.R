@@ -1,26 +1,7 @@
-#install.packages(c("Matrix","MASS","abind",
-#                   "mvtnorm","MomTrunc","TruncatedNormal","tlrmvnmvt","magic",
-#                   "matrixcalc",
-#                   "purrr","furrr","dplyr","tidyr"))
-
-library(Matrix)
 library(MASS)
 library(abind)
-
-library(mvtnorm)
-library(MomTrunc)
-library(TruncatedNormal)
-library(tlrmvnmvt)
 library(magic)
-
 library(matrixcalc)
-
-library(purrr)
-library(furrr)
-library(dplyr)
-library(tidyr)
-
-library(future.apply)
 library(transport)
 library(expm)
 
@@ -38,9 +19,6 @@ one_hot <- function(position, dimension)
 Phi<- function(mu, Sigma)
 {
   Sigma = (Sigma+t(Sigma))/2
-  
-  # diag(1e-8, dim(Sigma)[1])
-  # is.positive.definite(Sigma+diag(1e-4, dim(Sigma)[1]), tol=1e-4)
   
   return(tlrmvnmvt::pmvn(upper = mu[,1], sigma = Sigma)[1])
 }
