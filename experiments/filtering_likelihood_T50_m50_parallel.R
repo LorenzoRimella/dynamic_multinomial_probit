@@ -95,7 +95,7 @@ message("Using ", slurm_cpus, " workers for parallel processing.")
 # Use multisession (safer on HPC clusters)
 plan(multisession, workers = slurm_cpus)
 
-n_replicates = 100
+n_replicates = 96
 
 results <- future_lapply(1:n_replicates, function(repl) {
   set.seed(12345+repl)
