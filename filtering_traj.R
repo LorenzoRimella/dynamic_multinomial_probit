@@ -115,17 +115,20 @@ gg1 = ggplot(plot_data, aes(x = x)) +
     y = expression(beta[t])
   )
 
-ggsave("figures/traj1010.png", plot = gg1, width = 10, height = 6, dpi = 300, units = "in")
+ggsave("figures/traj_T10_m10.pdf", plot = gg1, width = 10, height = 6, units = "in")
+ggsave("figures/traj_T10_m10.png", plot = gg1, width = 10, height = 6, dpi = 300, units = "in")
 
 
 # plot trajectories
-load("data/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10_data_multinomial_probit_SMC_filter.Rdata")
-load("data/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10_data_multinomial_probit_SMC_smoother.Rdata")
-load("data/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10_data_multinomial_probit_ADF_filter.Rdata")
-load("data/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10_data_multinomial_probit_ADF_smoother.Rdata")
-load("data/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10_data_multinomial_probit_EP_filter.Rdata")
-load("data/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10_data_multinomial_probit_EP_smoother.Rdata")
-load("data/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_10_data_multinomial_probit_single.Rdata")
+load("data/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_50/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_50_data_multinomial_probit_SMC_filter.Rdata")
+load("data/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_50/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_50_data_multinomial_probit_SMC_smoother.Rdata")
+load("data/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_50/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_50_data_multinomial_probit_ADF_filter.Rdata")
+load("data/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_50/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_50_data_multinomial_probit_ADF_smoother.Rdata")
+load("data/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_50/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_50_data_multinomial_probit_EP_filter.Rdata")
+load("data/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_50/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_50_data_multinomial_probit_EP_smoother.Rdata")
+load("data/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_50/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_50_data_multinomial_probit_single.Rdata")
+
+Time <- length(data_multinomial_probit$Y)
 
 # PLOT FILTERING
 # Create a data frame for plotting
@@ -208,7 +211,8 @@ gg2 = ggplot(plot_data, aes(x = x)) +
   )
 
 
-ggsave("figures/traj5010.png", plot = gg2, width = 10, height = 6, dpi = 300, units = "in")
+ggsave("figures/traj_T50_m10.pdf", plot = gg2, width = 10, height = 6, units = "in")
+ggsave("figures/traj_T50_m10.png", plot = gg2, width = 10, height = 6, dpi = 300, units = "in")
 
 # plot trajectories
 load("data/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_50/filt_smoot_lik_traj_p_9_mt_50_L_3_Time_50_data_multinomial_probit_ADF_filter.Rdata")
@@ -288,5 +292,5 @@ gg3 = ggplot(plot_data, aes(x = x)) +
   )
 
 
-ggsave("figures/traj5050.png", plot = gg3, width = 10, height = 6, dpi = 300, units = "in")
-
+ggsave("figures/traj_T50_m50.pdf", plot = gg3, width = 10, height = 6, units = "in")
+ggsave("figures/traj_T50_m50.png", plot = gg3, width = 10, height = 6, dpi = 300, units = "in")

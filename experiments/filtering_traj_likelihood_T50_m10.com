@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=filtering_likelihood_T10_m10_traj
+#SBATCH --job-name=filtering_likelihood_T50_m10_traj
 #SBATCH --time=72:00:00                   # Maximum wall time (hh:mm:ss)
 #SBATCH --nodes=1                         # Request one node
 #SBATCH --ntasks=1                        # One task (process) total

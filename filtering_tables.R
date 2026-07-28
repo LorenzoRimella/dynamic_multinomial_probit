@@ -1,72 +1,81 @@
 library(dplyr)
-library(tidyr)
-
 library(xtable)
 
+summarise_filtering_results <- function(file, reference_type) {
+  saved_output <- new.env(parent = emptyenv())
+  load(file, envir = saved_output)
+  results <- saved_output$data_frame_output
 
-load("data/parallel_filt_smoot_lik_p_9_mt_10_L_3_Time_10/parallel_filt_smoot_lik_p_9_mt_10_L_3_Time_10_data.Rdata")
+  if (!"replicate" %in% names(results)) {
+    stop("The results do not contain the replicate identifier: ", file)
+  }
 
-# Compute mean and standard deviation for each type
-summary_table <- data_frame_output %>%
-  group_by(type) %>%
-  summarise(across(
-    where(is.numeric),
-    list(mean = ~mean(.), sd = ~sd(.)),
-    .names = "{.col}_{.fn}"
-  )) %>%
-  mutate(across(
-    ends_with("_mean"),
-    ~paste0(round(.x, 3), " ± ", round(get(sub("_mean$", "_sd", cur_column())), 3)),
-    .names = "{.col}_formatted"
-  )) %>%
-  dplyr::select(type, ends_with("_formatted")) %>%
-  rename_with(~sub("_mean_formatted$", "", .x))
+  reference_loglik <- results %>%
+    filter(type == reference_type) %>%
+    select(replicate, reference_log_likelihood = log_likelihood)
 
-# Print table
-print(summary_table, row.names = FALSE)
-xtable(t(summary_table))
+  results <- results %>%
+    left_join(reference_loglik, by = "replicate") %>%
+    transmute(
+      replicate,
+      type,
+      filter_time = filter_running_time,
+      delta_log_likelihood = log_likelihood - reference_log_likelihood,
+      mean_marginal_W2 = filter_distance_from_exact
+    )
 
-load("data/full_parallel_filt_smoot_lik_p_9_mt_10_L_3_Time_50/full_parallel_filt_smoot_lik_p_9_mt_10_L_3_Time_50_data.Rdata")
+  numeric_summary <- results %>%
+    group_by(type) %>%
+    summarise(
+      across(
+        c(filter_time, delta_log_likelihood, mean_marginal_W2),
+        list(mean = mean, sd = sd),
+        .names = "{.col}_{.fn}"
+      ),
+      .groups = "drop"
+    )
 
-# Compute mean and standard deviation for each type
-summary_table <- data_frame_output %>%
-  group_by(type) %>%
-  summarise(across(
-    where(is.numeric),
-    list(mean = ~mean(.), sd = ~sd(.)),
-    .names = "{.col}_{.fn}"
-  )) %>%
-  mutate(across(
-    ends_with("_mean"),
-    ~paste0(round(.x, 3), " ± ", round(get(sub("_mean$", "_sd", cur_column())), 3)),
-    .names = "{.col}_formatted"
-  )) %>%
-  dplyr::select(type, ends_with("_formatted")) %>%
-  rename_with(~sub("_mean_formatted$", "", .x))
+  formatted_summary <- numeric_summary %>%
+    transmute(
+      type,
+      filter_time = sprintf("%.3f ± %.3f", filter_time_mean, filter_time_sd),
+      delta_log_likelihood = sprintf(
+        "%.3f ± %.3f",
+        delta_log_likelihood_mean,
+        delta_log_likelihood_sd
+      ),
+      mean_marginal_W2 = sprintf(
+        "%.3f ± %.3f",
+        mean_marginal_W2_mean,
+        mean_marginal_W2_sd
+      )
+    )
 
-# Print table
-print(summary_table, row.names = FALSE)
-xtable(t(summary_table))
+  print(formatted_summary, row.names = FALSE)
+  print(xtable(formatted_summary), include.rownames = FALSE)
+  invisible(numeric_summary)
+}
 
-load("data/full_parallel_filt_smoot_lik_p_9_mt_50_L_3_Time_50/full_parallel_filt_smoot_lik_p_9_mt_50_L_3_Time_50_data.Rdata")
+summary_T10_m10 <- summarise_filtering_results(
+  paste0(
+    "data/full_parallel_filt_smoot_lik_p_9_mt_10_L_3_Time_10/",
+    "full_parallel_filt_smoot_lik_p_9_mt_10_L_3_Time_10_data.Rdata"
+  ),
+  reference_type = "exact"
+)
 
-# Compute mean and standard deviation for each type
-summary_table <- data_frame_output %>%
-  group_by(type) %>%
-  summarise(across(
-    where(is.numeric),
-    list(mean = ~mean(.), sd = ~sd(.)),
-    .names = "{.col}_{.fn}"
-  )) %>%
-  mutate(across(
-    ends_with("_mean"),
-    ~paste0(round(.x, 3), " ± ", round(get(sub("_mean$", "_sd", cur_column())), 3)),
-    .names = "{.col}_formatted"
-  )) %>%
-  dplyr::select(type, ends_with("_formatted")) %>%
-  rename_with(~sub("_mean_formatted$", "", .x))
+summary_T50_m10 <- summarise_filtering_results(
+  paste0(
+    "data/full_parallel_filt_smoot_lik_p_9_mt_10_L_3_Time_50/",
+    "full_parallel_filt_smoot_lik_p_9_mt_10_L_3_Time_50_data.Rdata"
+  ),
+  reference_type = "ADF"
+)
 
-# Print table
-print(summary_table, row.names = FALSE)
-xtable(t(summary_table))
-
+summary_T50_m50 <- summarise_filtering_results(
+  paste0(
+    "data/full_parallel_filt_smoot_lik_p_9_mt_50_L_3_Time_50/",
+    "full_parallel_filt_smoot_lik_p_9_mt_50_L_3_Time_50_data.Rdata"
+  ),
+  reference_type = "ADF"
+)

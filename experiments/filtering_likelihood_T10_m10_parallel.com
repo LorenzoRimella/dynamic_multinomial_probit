@@ -10,6 +10,12 @@
 #SBATCH --mem=64G                          # Memory per node (adjust as needed)
 #SBATCH --account=uBG25_EcoRim       # Project account number
 
+# Each filtering run uses one core; parallelization is only across replications.
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export VECLIB_MAXIMUM_THREADS=1
+
 # Load necessary modules
 module load profile/bioinf
 module load autoload r

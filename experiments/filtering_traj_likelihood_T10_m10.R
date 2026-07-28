@@ -49,27 +49,19 @@ beta_size = p + L
 a_0 = matrix(rep(0, beta_size), ncol = 1)
 P_0 = diag(beta_size)
 
-G = 0.5*diag(beta_size)
-for(i in 2:beta_size)
-{
-  sign = sample(c(-1, 1), 1)
-  G[i,i-1] = sign*0.25
-  G[i-1,i] = sign*0.25
-}
+alpha = 0.5
+G = alpha*diag(beta_size)
 
-W = 0.05*diag(beta_size)
+W = (1-alpha*alpha)*P_0
 
-Sigma = 0.2*diag(L)
-for(i in 2:L)
-{
-  sign = sample(c(-1, 1), 1)
-  Sigma[i,i-1] = sign*0.1
-  Sigma[i-1,i] = sign*0.1
-}
+Sigma = matrix(c(1.6, -0.1, 0,
+                 -0.1, 0.2, 0.1,
+                 0, 0.1, 1.2),
+               nrow = L, byrow = TRUE)
 
 # GENERATE DATA
 
-parameters = list(a_0 = a_0, P_0 = L*P_0/sum(diag(Sigma)), G = G, W = L*W/sum(diag(Sigma)), Sigma = L*Sigma/sum(diag(Sigma)))
+parameters = list(a_0 = a_0, P_0 = P_0, G = G, W = W, Sigma = Sigma)
 
 hyperparameters = list(lambda_M = expected_m_t, N_max = 4*expected_m_t, Y_max = 20, prediction_bool= FALSE)
 
@@ -83,7 +75,7 @@ EP_max_iterations = 11
 tol= 1e-3
 MC_samples = 1e4
 
-sliding_window = 11
+sliding_window = Time + 1
 
 set.seed(12345)
   

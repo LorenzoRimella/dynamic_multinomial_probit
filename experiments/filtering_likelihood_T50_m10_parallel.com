@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=filtering_likelihood_T10_m50_parallel
+#SBATCH --job-name=filtering_likelihood_T50_m10_parallel
 #SBATCH --time=72:00:00                   # Maximum wall time (hh:mm:ss)
 #SBATCH --nodes=1                         # Request one node
 #SBATCH --ntasks=1                        # One task (process) total
@@ -8,6 +8,12 @@
 #SBATCH --qos=g100_qos_lprod                  # Quality of Service
 #SBATCH --mem=32G                          # Memory per node (adjust as needed)
 #SBATCH --account=uBG25_EcoRim       # Project account number
+
+# Each filtering run uses one core; parallelization is only across replications.
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export VECLIB_MAXIMUM_THREADS=1
 
 # Load necessary modules
 module load profile/bioinf

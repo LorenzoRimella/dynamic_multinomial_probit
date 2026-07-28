@@ -1,7 +1,5 @@
 SMC_sampling_filter <- function(data, parameters, MC_samples)
 {
-  plan(multisession)
-  
   start_time <- Sys.time()
   L = dim(parameters$Sigma)[1]
   Time = length(data$Y)
@@ -35,7 +33,7 @@ SMC_sampling_filter <- function(data, parameters, MC_samples)
     }
     
     #start_time <- Sys.time()
-    weights = future_sapply(seq(1, MC_samples), function(s) prod_likelihood(s), future.seed = TRUE)
+    weights = sapply(seq(1, MC_samples), function(s) prod_likelihood(s))
     #print(as.numeric(Sys.time() - start_time))
     
     weights_norm = weights/sum(weights)
