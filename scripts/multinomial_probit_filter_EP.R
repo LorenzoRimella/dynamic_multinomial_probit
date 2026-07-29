@@ -146,7 +146,8 @@ EP_sampling_correction <- function(x_t, y_t, a_t_tm1, P_t_tm1, parameters, EP_ma
               a_t = a_t,
               P_t = P_t,
               r_t = r,
-              Q_t = Q))
+              Q_t = Q,
+              sweep = iteration))
 }
 
 
@@ -169,6 +170,7 @@ EP_sampling_filter <- function(data, parameters, EP_max_iterations, MC_samples, 
   
   r_history = list() 
   Q_history = list() 
+  sweep_history = list()
   
   for(t in 1:Time)
   {
@@ -190,6 +192,7 @@ EP_sampling_filter <- function(data, parameters, EP_max_iterations, MC_samples, 
     
     r_history[[t]] = EP_correction_output$r_t
     Q_history[[t]] = EP_correction_output$Q_t
+    sweep_history[[t]] = EP_correction_output$sweep
     
   }
   
@@ -197,5 +200,6 @@ EP_sampling_filter <- function(data, parameters, EP_max_iterations, MC_samples, 
               a_history = a_history, P_history = P_history, 
               r_history = r_history, Q_history = Q_history,
               sampling_history = sampling_history,
+              sweep_history= sweep_history,
               running_time = as.numeric(Sys.time() - start_time, units = "secs")))
 }

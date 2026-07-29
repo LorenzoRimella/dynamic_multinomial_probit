@@ -151,7 +151,7 @@ G = alpha_num*diag(beta_size)
 W = (1-alpha_num*alpha_num)*P_0
 
 # Filter
-EP_max_iterations = 5
+EP_max_iterations = 11
 MC_samples = 10000
 eps_sample_size = 10000
 tol = 10e-3
@@ -237,11 +237,9 @@ plot2=ggplot(positions, aes(x = col, y = row, fill = value)) +
     plot.title = element_text(hjust = 0.5)
   )
 
-ggsave???
-
 library(patchwork)
 
-plot1 | plot2
+ggsave("figures/expedia_training.png", plot1 | plot2, width = 12, height = 3, dpi = 300)
 
 
 L = 10

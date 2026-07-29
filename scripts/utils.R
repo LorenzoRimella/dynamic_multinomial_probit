@@ -45,6 +45,75 @@ Phi<- function(mu, Sigma)
   return(tlrmvnmvt::pmvn(upper = mu[,1], sigma = Sigma)[1])
 }
 
+# Phi_SMC <- function(mu, Sigma,
+#                 algorithm = tlrmvnmvt::GenzBretz()) {
+#   
+#   mu <- as.matrix(mu)
+#   Sigma <- as.matrix(Sigma)
+#   Sigma <- (Sigma + t(Sigma)) / 2
+#   
+#   p <- ncol(mu)
+#   
+#   if (!all(dim(Sigma) == c(p, p))) {
+#     stop("Sigma must be a p x p matrix, where p = ncol(mu).")
+#   }
+#   
+#   vapply(
+#     seq_len(nrow(mu)),
+#     FUN.VALUE = numeric(1),
+#     FUN = function(i) {
+#       as.numeric(
+#         tlrmvnmvt::pmvn(
+#           upper = mu[i, ],       # row i, not mu[, 1]
+#           mean = numeric(p),
+#           sigma = Sigma,
+#           algorithm = algorithm
+#         )
+#       )
+#     }
+#   )
+# }
+
+# tlrmvnmvt::pmvn uses 9,980 samples (20 batches x 499)
+Phi_batch <- function(mu, Sigma, M = 9980, seed = NULL) {
+  
+  mu <- as.matrix(mu)
+  Sigma <- as.matrix(Sigma)
+  Sigma <- (Sigma + t(Sigma)) / 2
+  
+  N <- nrow(mu)
+  p <- ncol(mu)
+  
+  if (!all(dim(Sigma) == c(p, p))) {
+    stop("Sigma must be a p x p matrix, where p = ncol(mu).")
+  }
+  
+  # chol() returns an upper-triangular factor R:
+  # t(R) %*% R = Sigma
+  # lpmvnorm wants the corresponding lower-triangular factor.
+  Cmat <- t(chol(Sigma))
+  
+  C <- mvtnorm::ltMatrices(
+    Cmat[lower.tri(Cmat, diag = TRUE)],
+    diag = TRUE
+  )
+  
+  lower <- matrix(-Inf, nrow = p, ncol = N)
+  upper <- t(mu)   # lpmvnorm uses one observation per column
+  
+  log_probabilities <- mvtnorm::lpmvnorm(
+    lower = lower,
+    upper = upper,
+    mean = 0,
+    chol = C,
+    logLik = FALSE,
+    M = M,
+    seed = seed
+  )
+  
+  exp(log_probabilities)
+}
+
 V_minus_l <- function(l, L)
 {
   if(L>1){

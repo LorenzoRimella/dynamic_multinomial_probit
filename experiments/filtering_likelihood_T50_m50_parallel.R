@@ -121,7 +121,8 @@ results <- future_lapply(1:n_replicates, function(repl) {
     smoother_running_time = EP_smoother_sampler_output$running_time,
     log_likelihood = EP_filter_sampler_output$log_likelihood,
     filter_distance_from_exact = mean_wasserstein_sampling(EP_filter_sampler_output$sampling_history, ADF_filter_sampler_output$sampling_history),
-    smoothing_distance_from_exact = mean_wasserstein_gaussian(EP_smoother_sampler_output, ADF_smoother_sampler_output)
+    smoothing_distance_from_exact = mean_wasserstein_gaussian(EP_smoother_sampler_output, ADF_smoother_sampler_output),
+    other = mean(array(unlist(EP_filter_sampler_output$sweep_history)))
   )
   
   df_ADF = data.frame(
@@ -130,7 +131,8 @@ results <- future_lapply(1:n_replicates, function(repl) {
     smoother_running_time = ADF_smoother_sampler_output$running_time,
     log_likelihood = ADF_filter_sampler_output$log_likelihood,
     filter_distance_from_exact = 0,
-    smoothing_distance_from_exact = 0
+    smoothing_distance_from_exact = 0,
+    other = 0
   )
   
   

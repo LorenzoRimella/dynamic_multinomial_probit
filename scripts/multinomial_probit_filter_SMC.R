@@ -1,6 +1,5 @@
 SMC_sampling_filter <- function(data, parameters, MC_samples)
 {
-  plan(multisession)
   
   start_time <- Sys.time()
   L = dim(parameters$Sigma)[1]
@@ -17,7 +16,8 @@ SMC_sampling_filter <- function(data, parameters, MC_samples)
   P_history[1,,] = parameters$P_0
   log_likelihood = 0
   
-  sampling_history[1,,] = t(mvrnorm(n = MC_samples, parameters$a_0, parameters$P_0))
+  sampling_history[1,,] = t(mvrnorm(n = MC_samples, parameters$a_0, parameters$P_0)) 
+  ESS_history = list()
   
   for(t in 1:Time)
   {
@@ -28,15 +28,21 @@ SMC_sampling_filter <- function(data, parameters, MC_samples)
     
     m_t = dim(x_t)[1]
     
-    prod_likelihood <-function(s)
-    {
-      prod(sapply(seq(1, m_t), function(i) Phi(t(t((X_minus_l(x_t[i,,], y_t[i], L) %*% sampling_prediction)[,s])),
-                                       V_minus_l(y_t[i], L) %*% parameters$Sigma %*% t(V_minus_l(y_t[i], L)))))
-    }
+    # prod_likelihood <-function(s)
+    # {
+    #   prod(sapply(seq(1, m_t), function(i) Phi(t(t((X_minus_l(x_t[i,,], y_t[i], L) %*% sampling_prediction)[,s])),
+    #                                            V_minus_l(y_t[i], L) %*% parameters$Sigma %*% t(V_minus_l(y_t[i], L)))))
+    # }
     
-    #start_time <- Sys.time()
-    weights = future_sapply(seq(1, MC_samples), function(s) prod_likelihood(s), future.seed = TRUE)
-    #print(as.numeric(Sys.time() - start_time))
+    # start_time <- Sys.time()
+    before_weights = sapply(seq(1, m_t), function(i) Phi_batch(t(X_minus_l(x_t[i,,], y_t[i], L) %*% sampling_prediction[,1:MC_samples]),
+                                                 V_minus_l(y_t[i], L) %*% parameters$Sigma %*% t(V_minus_l(y_t[i], L))))
+    weights = apply(before_weights, 1, prod)
+    # print(as.numeric(Sys.time() - start_time))
+    
+    # start_time <- Sys.time()
+    # weights = sapply(seq(1, MC_samples), function(s) prod_likelihood(s))
+    # print(as.numeric(Sys.time() - start_time))
     
     weights_norm = weights/sum(weights)
     
@@ -52,10 +58,13 @@ SMC_sampling_filter <- function(data, parameters, MC_samples)
     a_history[t+1,]  = a_t
     P_history[t+1,,] = P_t
     
+    ESS_history[[t]] = 1/sum(weights_norm*weights_norm)
+    
   }
   
   return(list(log_likelihood = log_likelihood, 
               a_history = a_history, P_history = P_history,
               sampling_history = sampling_history[2:(Time+1),,],
-              running_time = as.numeric(Sys.time() - start_time, units = "secs")))
+              running_time = as.numeric(Sys.time() - start_time, units = "secs"),
+              ESS_history = ESS_history))
 }
