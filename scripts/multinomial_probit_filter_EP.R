@@ -20,7 +20,7 @@ SUN_site_i_parameters <- function(i, x_t, y_t, r_minus_i, Q_minus_i, parameters)
   
   if(L==1){
     s     = t(t(diag(t(t(  sqrt(diag(XOX_Lambda)))))))
-    inv_s = t(t(diag(t(t(1/sqrt(diag(XOX_Lambda))))))) # double transpose cause there was a dim bug
+    inv_s = t(t(diag(t(t(1/sqrt(diag(XOX_Lambda)))))))
   }else{
     s     = diag(  sqrt(diag(XOX_Lambda)))
     inv_s = diag(1/sqrt(diag(XOX_Lambda)))
@@ -44,8 +44,6 @@ log_Psi<- function(r_Psi, Q_Psi)
   
   return( (1/2)*(t(r_Psi)%*% solve(Q_Psi) %*% r_Psi) + (p/2)*log(2*pi) - (1/2)*log(abs(det(Q_Psi))))
 }
-
-# stabilize EP by convex combination alpha=0.999 (close to new update)
 
 site_i_update <- function(i, x_t, y_t, r, Q, logZ, parameters, MC_samples)
 {
@@ -123,7 +121,8 @@ EP_sampling_correction <- function(x_t, y_t, a_t_tm1, P_t_tm1, parameters, EP_ma
     
     new_EP_loglike = EP_log_likelihood_increments(r, Q, logZ)
     old_EP_loglike = EP_log_likelihood_increments(r_current, Q_current, logZ_current)
-    max_diff_vec[iteration] = abs( new_EP_loglike - old_EP_loglike)/abs(old_EP_loglike)
+    max_diff_vec[iteration] = abs(new_EP_loglike - old_EP_loglike) /
+      max(abs(old_EP_loglike), .Machine$double.eps)
     
     max_diff = max_diff_vec[iteration]
     
@@ -141,13 +140,18 @@ EP_sampling_correction <- function(x_t, y_t, a_t_tm1, P_t_tm1, parameters, EP_ma
   a_t = P_t %*% r_sum
   
   log_likelihood_increment = log_Psi(r_sum, Q_sum) - log_Psi(r_0, Q_0) - sum(logZ)
-  
+  completed_sweeps = iteration - 1L
+  converged = is.finite(max_diff) && max_diff <= tol
+
   return(list(log_likelihood_increment = log_likelihood_increment,
               a_t = a_t,
               P_t = P_t,
               r_t = r,
               Q_t = Q,
-              sweep = iteration))
+              completed_sweeps = completed_sweeps,
+              converged = converged,
+              final_relative_change = max_diff,
+              relative_change_history = max_diff_vec[seq_len(completed_sweeps)]))
 }
 
 
@@ -156,8 +160,6 @@ EP_sampling_filter <- function(data, parameters, EP_max_iterations, MC_samples, 
   start_time <- Sys.time()
   L = dim(parameters$Sigma)[1]
   Time = length(data$Y)
-  
-  V_minus_pre_computed = lapply(seq(0, L), function(i) V_minus_l(i,L))
   
   a_history = array(NA, dim = c(Time+1, dim(parameters$a_0)[1]))
   P_history = array(NA, dim = c(Time+1, dim(parameters$a_0)[1], dim(parameters$a_0)[1]))
@@ -168,13 +170,14 @@ EP_sampling_filter <- function(data, parameters, EP_max_iterations, MC_samples, 
   P_history[1,,] = parameters$P_0
   log_likelihood = 0
   
-  r_history = list() 
-  Q_history = list() 
-  sweep_history = list()
+  r_history = list()
+  Q_history = list()
+  completed_sweeps = integer(Time)
+  converged = logical(Time)
+  final_relative_change = numeric(Time)
   
   for(t in 1:Time)
   {
-    # print(t)
     EP_prediction_parameters = ADF_prediction(a_history[t,], P_history[t,,], parameters)
     a_t_tm1 = EP_prediction_parameters$a_t_tm1
     P_t_tm1 = EP_prediction_parameters$P_t_tm1
@@ -192,14 +195,21 @@ EP_sampling_filter <- function(data, parameters, EP_max_iterations, MC_samples, 
     
     r_history[[t]] = EP_correction_output$r_t
     Q_history[[t]] = EP_correction_output$Q_t
-    sweep_history[[t]] = EP_correction_output$sweep
+    completed_sweeps[t] = EP_correction_output$completed_sweeps
+    converged[t] = EP_correction_output$converged
+    final_relative_change[t] = EP_correction_output$final_relative_change
     
   }
   
   return(list(log_likelihood = log_likelihood, 
-              a_history = a_history, P_history = P_history, 
+              a_history = a_history, P_history = P_history,
               r_history = r_history, Q_history = Q_history,
+              convergence = data.frame(
+                time = seq_len(Time),
+                sweep_history = completed_sweeps,
+                converged = converged,
+                final_relative_change = final_relative_change
+              ),
               sampling_history = sampling_history,
-              sweep_history= sweep_history,
               running_time = as.numeric(Sys.time() - start_time, units = "secs")))
 }

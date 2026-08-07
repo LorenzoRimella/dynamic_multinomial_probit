@@ -11,7 +11,6 @@ gaussian_prior <- function(data, parameters)
   
   for(t in 1:Time)
   {
-    #print(t)
     ADF_prediction_parameters = ADF_prediction(a_history[t,], P_history[t,,], parameters)
     a_t_tm1 = ADF_prediction_parameters$a_t_tm1
     P_t_tm1 = ADF_prediction_parameters$P_t_tm1
@@ -29,7 +28,7 @@ gaussian_prior <- function(data, parameters)
 optim_sigma_trace <- function(V, L, M, tol = 1e-10) {
   stopifnot(is.matrix(V), nrow(V) == ncol(V), M > 0, L > 0)
   
-  # Symmetrize to be safe
+  # Numerical symmetrization before the eigendecomposition.
   V <- 0.5 * (V + t(V))
   
   # Eigendecompose V
@@ -67,7 +66,9 @@ optim_sigma_trace <- function(V, L, M, tol = 1e-10) {
     # Need larger trace -> lambda > 0
     # Upper bound from discriminant: lam < min_i M/(8*s_i) for s_i>0
     s_pos <- s[s > 0]
-    if (length(s_pos) == 0) stop("All eigenvalues of V are zero; cannot increase trace with this KKT system.") # This should never happen in our problem though
+    if (length(s_pos) == 0) {
+      stop("All eigenvalues of V are zero; the trace constraint is infeasible.")
+    }
     lam_max <- min(M / (8 * s_pos))
     # back off slightly to keep discriminant positive
     hi <- lam_max * 0.999999
@@ -83,7 +84,9 @@ optim_sigma_trace <- function(V, L, M, tol = 1e-10) {
     # Expand left until we bracket a sign change
     while (g(lo) > 0) {
       lo <- lo * 2
-      if (abs(lo) > 1e16) stop("Failed to bracket root on the negative side?check inputs.")
+      if (abs(lo) > 1e16) {
+        stop("Failed to bracket the root on the negative side; check the inputs.")
+      }
     }
     hi <- 0
     root <- uniroot(g, lower = lo, upper = hi, tol = tol)
@@ -176,5 +179,3 @@ multinomial_probit_EM_Sigma <- function(data,
   return(list(log_likelihood_history = log_likelihood_history, 
               Sigma_history = Sigma_history))
 }
-
-

@@ -14,7 +14,7 @@ SUN_translator_eps <- function(x_t, y_t, a, P, parameters)
     XPX_VSigV = lapply(seq(1, m_t), function(i) X_minus_l(x_t[i,,], y_t[i], L) %*% P[[i]] %*% t(X_minus_l(x_t[i,,], y_t[i], L)) + (-V_minus_l(y_t[i], L)) %*% Omega0_t %*% t(-V_minus_l(y_t[i], L)) )
     
     s0_t     = lapply(seq(1, m_t), function(i) t(t(diag(t(t(  sqrt(diag(XPX_VSigV[[i]]))))))))
-    inv_s0_t = lapply(seq(1, m_t), function(i) t(t(diag(t(t(1/sqrt(diag(XPX_VSigV[[i]])))))))) # double transpose cause there was a dim bug
+    inv_s0_t = lapply(seq(1, m_t), function(i) t(t(diag(t(t(1/sqrt(diag(XPX_VSigV[[i]]))))))))
   }
   else{
     omega0_t     = diag(  sqrt(diag(Omega0_t)))
@@ -57,7 +57,7 @@ ADF_SUN_translator_eps <- function(x_t, y_t, a, P, parameters)
     XPX_VSigV = lapply(seq(1, m_t), function(i) X_minus_l(x_t[i,,], y_t[i], L) %*% P %*% t(X_minus_l(x_t[i,,], y_t[i], L)) + (-V_minus_l(y_t[i], L)) %*% Omega0_t %*% t(-V_minus_l(y_t[i], L)) )
     
     s0_t     = lapply(seq(1, m_t), function(i) t(t(diag(t(t(  sqrt(diag(XPX_VSigV[[i]]))))))))
-    inv_s0_t = lapply(seq(1, m_t), function(i) t(t(diag(t(t(1/sqrt(diag(XPX_VSigV[[i]])))))))) # double transpose cause there was a dim bug
+    inv_s0_t = lapply(seq(1, m_t), function(i) t(t(diag(t(t(1/sqrt(diag(XPX_VSigV[[i]]))))))))
   }
   else{
     omega0_t     = diag(  sqrt(diag(Omega0_t)))
@@ -95,8 +95,6 @@ Gaussian_smoother <- function(data, parameters, Gaussian_filter)
   
   a_smoothing_history[Time+1,]  = Gaussian_filter$a_history[Time+1,]
   P_smoothing_history[Time+1,,] = Gaussian_filter$P_history[Time+1,,]
-  
-  eps_smoothing_history = list()
   
   for(t in 1:Time)
   {
@@ -136,14 +134,10 @@ EP_epsilon_smoother <- function(data, parameters, EP_filter_output, EP_smoother_
 {
   Time = dim(EP_filter_output$a_history)[1]-1
   
-  a_minus_i_smoothing_history = list()
-  P_minus_i_smoothing_history = list()
-  
   eps_smoothing_history = list()
   
   for(t in 1:(Time))
   {
-    # print(t)
     y_t = data$Y[[t]]
     x_t = data$X[[t]]
     
@@ -171,14 +165,10 @@ ADF_epsilon_smoother <- function(data, parameters, ADF_filter_output, ADF_smooth
 {
   Time = dim(ADF_smoother_output$a_history)[1]-1
   
-  a_minus_i_smoothing_history = list()
-  P_minus_i_smoothing_history = list()
-  
   eps_smoothing_history = list()
   
   for(t in 1:(Time))
   {
-    # print(t)
     y_t = data$Y[[t]]
     x_t = data$X[[t]]
     
@@ -195,4 +185,3 @@ ADF_epsilon_smoother <- function(data, parameters, ADF_filter_output, ADF_smooth
   return(eps_smoothing_history)
   
 }
-

@@ -103,12 +103,9 @@ exact_sampling_filter <- function(data, parameters, sliding_window, MC_samples)
   log_likelihood = log(Phi(SUN_parameters_history[[1]]$gamma_t, 
                            SUN_parameters_history[[1]]$Gamma_t))
   
-  # controlla loglikelihood e restituisci parametri SUN 
-  
   for(t in 2:Time)
   {
-    #print(t-1)
-    SUN_sample = rSUN(SUN_parameters_history[[t-1]], MC_samples) 
+    SUN_sample = rSUN(SUN_parameters_history[[t-1]], MC_samples)
     
     sampling_history[t-1,,] = SUN_sample
     
@@ -139,8 +136,7 @@ exact_sampling_filter <- function(data, parameters, sliding_window, MC_samples)
                                                                                                      SUN_prediction_parameters$Gamma_t))
     }
   }
-  #print(t)
-  SUN_sample = rSUN(SUN_parameters_history[[Time]], MC_samples) 
+  SUN_sample = rSUN(SUN_parameters_history[[Time]], MC_samples)
   
   sampling_history[Time,,] = SUN_sample
   

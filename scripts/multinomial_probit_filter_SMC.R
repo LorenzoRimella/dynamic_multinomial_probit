@@ -1,11 +1,8 @@
 SMC_sampling_filter <- function(data, parameters, MC_samples)
 {
-  
   start_time <- Sys.time()
   L = dim(parameters$Sigma)[1]
   Time = length(data$Y)
-  
-  V_minus_pre_computed = lapply(seq(0, L), function(i) V_minus_l(i,L))
   
   a_history = array(NA, dim = c(Time+1, dim(parameters$a_0)[1]))
   P_history = array(NA, dim = c(Time+1, dim(parameters$a_0)[1], dim(parameters$a_0)[1]))
@@ -21,6 +18,7 @@ SMC_sampling_filter <- function(data, parameters, MC_samples)
   
   for(t in 1:Time)
   {
+    print(t)
     sampling_prediction = parameters$G %*% sampling_history[t,,] + t(mvrnorm(n = MC_samples, 0*parameters$a_0, parameters$W))
     
     y_t = data$Y[[t]]

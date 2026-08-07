@@ -55,7 +55,7 @@ simulator <- function(X_cov, Y_cov, parameters, hyperparameters = list(lambda_M,
   M_t = rpois(Time, hyperparameters$lambda_M) # number of customers per time steps
   M_t[M_t==0]=2
   M_t[M_t==1]=2
-  M_t = apply(rbind(M_t, rep(hyperparameters$N_max, T)), 2, min) #  ensure it is lower than the total nr of customers
+  M_t = apply(rbind(M_t, rep(hyperparameters$N_max, Time)), 2, min) # ensure it is lower than the total nr of customers
   
   customers_index_set = lapply( M_t , function(x){ sample(seq(1, hyperparameters$N_max, by = 1), x) }) # customer per time step
   property_index_set  = lapply( M_t , function(m_t) sapply(seq(1, m_t), function(x) sample(seq(1, hyperparameters$Y_max, by = 1), L)))
