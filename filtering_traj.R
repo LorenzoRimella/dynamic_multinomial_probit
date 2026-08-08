@@ -3,11 +3,11 @@ library(dplyr)
 library(ggplot2)
 
 # T = 10, lambda_m = 10
-load("../cineca_backup/DMP_cineca/data/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10_data_multinomial_probit_exact_filter.Rdata")
-load("../cineca_backup/DMP_cineca/data/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10_data_multinomial_probit_SMC_filter.Rdata")
-load("../cineca_backup/DMP_cineca/data/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10_data_multinomial_probit_ADF_filter.Rdata")
-load("../cineca_backup/DMP_cineca/data/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10_data_multinomial_probit_EP_filter.Rdata")
-load("../cineca_backup/DMP_cineca/data/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10/filt_smoot_lik_traj_p_9_mt_10_L_3_Time_10_data_multinomial_probit_single.Rdata")
+load("../data/filtering_trajectory_p_9_mt_10_L_3_Time_10/filtering_trajectory_p_9_mt_10_L_3_Time_10_data_multinomial_probit_exact_filter.Rdata")
+load("../data/filtering_trajectory_p_9_mt_10_L_3_Time_10/filtering_trajectory_p_9_mt_10_L_3_Time_10_data_multinomial_probit_SMC_filter.Rdata")
+load("../data/filtering_trajectory_p_9_mt_10_L_3_Time_10/filtering_trajectory_p_9_mt_10_L_3_Time_10_data_multinomial_probit_ADF_filter.Rdata")
+load("../data/filtering_trajectory_p_9_mt_10_L_3_Time_10/filtering_trajectory_p_9_mt_10_L_3_Time_10_data_multinomial_probit_EP_filter.Rdata")
+load("../data/filtering_trajectory_p_9_mt_10_L_3_Time_10/filtering_trajectory_p_9_mt_10_L_3_Time_10_data_multinomial_probit_single.Rdata")
 
 Time <- length(data_multinomial_probit$Y)
 
@@ -21,17 +21,17 @@ data_list <- list()
 i=1
 for (j in indeces) {
   
-  df_filter <- data.frame(
-    x = seq(0, Time, length.out = Time+1),
-    y1 = data_multinomial_probit$Beta[, j],
-    y2 = exact_filter_sampler_output$a_history[, j],
-    y_upper = exact_filter_sampler_output$a_history[, j] + 1.96 * sqrt(exact_filter_sampler_output$P_history[, j, j]),
-    y_lower = exact_filter_sampler_output$a_history[, j] - 1.96 * sqrt(exact_filter_sampler_output$P_history[, j, j]),
-    color = color_list[1],
-    facet_row = i,
-    facet_col = "i.i.d."
-  )
-  data_list[[length(data_list) + 1]] <- df_filter
+  # df_filter <- data.frame(
+  #   x = seq(0, Time, length.out = Time+1),
+  #   y1 = data_multinomial_probit$Beta[, j],
+  #   y2 = exact_filter_sampler_output$a_history[, j],
+  #   y_upper = exact_filter_sampler_output$a_history[, j] + 1.96 * sqrt(exact_filter_sampler_output$P_history[, j, j]),
+  #   y_lower = exact_filter_sampler_output$a_history[, j] - 1.96 * sqrt(exact_filter_sampler_output$P_history[, j, j]),
+  #   color = color_list[1],
+  #   facet_row = i,
+  #   facet_col = "i.i.d."
+  # )
+  # data_list[[length(data_list) + 1]] <- df_filter
   
   df_filter <- data.frame(
     x = seq(0, Time, length.out = Time+1),

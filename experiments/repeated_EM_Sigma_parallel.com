@@ -4,15 +4,19 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=48
+#SBATCH --partition=g100_usr_pmem
+#SBATCH --qos=g100_qos_lprod
 #SBATCH --mem=64G
+#SBATCH --account=uBG25_EcoRim
 #SBATCH --array=10,30,60
 
+# Load necessary modules
+module load profile/bioinf
+module load autoload r
+
+# Prevent each R worker from spawning additional BLAS/OpenMP threads
 export OMP_NUM_THREADS=1
-export OPENBLAS_NUM_THREADS=1
 export MKL_NUM_THREADS=1
-export VECLIB_MAXIMUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "${SCRIPT_DIR}/.."
-
-Rscript experiments/repeated_EM_Sigma_parallel.R "${SLURM_ARRAY_TASK_ID}"
+Rscript DMP_cineca/experiments/repeated_EM_Sigma_parallel.R "${SLURM_ARRAY_TASK_ID}"

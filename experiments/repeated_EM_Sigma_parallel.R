@@ -9,12 +9,12 @@ if (length(script_path)) {
   message("Script path not detected. Working directory not changed.")
 }
 
-source("../scripts/utils.R")
-source("../scripts/model.R")
-source("../scripts/multinomial_probit_filter_EP.R")
-source("../scripts/multinomial_probit_filter_ADF.R")
-source("../scripts/multinomial_probit_gaussian_smoothing.R")
-source("../scripts/multinomial_probit_EM_Sigma.R")
+source("scripts/utils.R")
+source("scripts/model.R")
+source("scripts/multinomial_probit_filter_EP.R")
+source("scripts/multinomial_probit_filter_ADF.R")
+source("scripts/multinomial_probit_gaussian_smoothing.R")
+source("scripts/multinomial_probit_EM_Sigma.R")
 
 library(future)
 library(future.apply)
@@ -37,7 +37,7 @@ name_init = "Sigma_recovery_p_"
 
 output_name = sim_name(name_init, L, Time, p, expected_m_t)
 name_simulation = output_name$name
-directory_name  = paste("../data/", output_name$name_for_dir, sep ="")
+directory_name  = paste("data/", output_name$name_for_dir, sep ="")
 
 # Create the directory if needed
 if (!dir.exists(directory_name)) {

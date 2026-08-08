@@ -204,9 +204,9 @@ EP_sampling_filter <- function(data, parameters, EP_max_iterations, MC_samples, 
   return(list(log_likelihood = log_likelihood, 
               a_history = a_history, P_history = P_history,
               r_history = r_history, Q_history = Q_history,
+              sweep_history = completed_sweeps,
               convergence = data.frame(
                 time = seq_len(Time),
-                sweep_history = completed_sweeps,
                 converged = converged,
                 final_relative_change = final_relative_change
               ),

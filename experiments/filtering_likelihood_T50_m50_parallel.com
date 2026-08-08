@@ -4,14 +4,18 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=48
-#SBATCH --mem=32G
+#SBATCH --partition=g100_usr_pmem
+#SBATCH --qos=g100_qos_lprod
+#SBATCH --mem=64G
+#SBATCH --account=uBG25_EcoRim
 
+# Load necessary modules
+module load profile/bioinf
+module load autoload r
+
+# Prevent each R worker from spawning additional BLAS/OpenMP threads
 export OMP_NUM_THREADS=1
-export OPENBLAS_NUM_THREADS=1
 export MKL_NUM_THREADS=1
-export VECLIB_MAXIMUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "${SCRIPT_DIR}/.."
-
-Rscript experiments/filtering_likelihood_T50_m50_parallel.R
+Rscript DMP_cineca/experiments/filtering_likelihood_T50_m50_parallel.R

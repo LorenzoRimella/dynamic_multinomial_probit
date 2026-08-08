@@ -88,8 +88,9 @@ results <- future_lapply(1:n_replicates, function(repl) {
 
   data_multinomial_probit_repl = simulator_given_covariates(data_multinomial_probit, parameters, hyperparameters, Time)
 
-  EP_filter_sampler_output   = EP_sampling_filter(data_multinomial_probit_repl, parameters, EP_max_iterations, MC_samples, tol)
-  ADF_filter_sampler_output   = ADF_sampling_filter(data_multinomial_probit_repl, parameters, MC_samples)
+  EP_filter_sampler_output  = EP_sampling_filter(data_multinomial_probit_repl, parameters, EP_max_iterations, MC_samples, tol)
+  
+  ADF_filter_sampler_output = ADF_sampling_filter(data_multinomial_probit_repl, parameters, MC_samples)
 
   df_EP = data.frame(
     replicate = repl,
@@ -115,4 +116,3 @@ results <- future_lapply(1:n_replicates, function(repl) {
 
 data_frame_output <- do.call(rbind, unlist(results, recursive = FALSE))
 save(data_frame_output, file = paste0(directory_name, name_simulation, "_data.Rdata"))
-plan(sequential)
