@@ -124,10 +124,10 @@ ADF_sampling_correction <- function(x_t, y_t, a_t_tm1, P_t_tm1, parameters, MC_s
                                      SUN_correction_parameters_list$Gamma_t))
   
   SUN_correction_prediction_parameters_list = SUN_correction_prediction_parameters(x_t, a_t_tm1, P_t_tm1, parameters)
-  prediction_prob = sapply(seq(1, m_t), function(i) sapply(seq(1, L), 
-                                                           function(j)  Phi(SUN_correction_prediction_parameters_list$gamma_t[[i]][[j]], 
-                                                                            SUN_correction_prediction_parameters_list$Gamma_t[[i]][[j]])))
-  
+  # prediction_prob = sapply(seq(1, m_t), function(i) sapply(seq(1, L), 
+  #                                                          function(j)  Phi(SUN_correction_prediction_parameters_list$gamma_t[[i]][[j]], 
+  #                                                                           SUN_correction_prediction_parameters_list$Gamma_t[[i]][[j]])))
+  # 
 
   SUN_sample = rSUN(SUN_correction_parameters_list, MC_samples) 
 
@@ -135,7 +135,7 @@ ADF_sampling_correction <- function(x_t, y_t, a_t_tm1, P_t_tm1, parameters, MC_s
   P_t = cov(t(SUN_sample))
   
   return(list(log_likelihood_increment = log_likelihood_increment,
-              prediction_prob = prediction_prob,
+              # prediction_prob = prediction_prob,
               a_t = a_t,
               P_t = P_t,
               sample = SUN_sample))
@@ -156,7 +156,7 @@ ADF_sampling_filter <- function(data, parameters, MC_samples = 1000)
   a_history[1,]  = parameters$a_0
   P_history[1,,] = parameters$P_0
   log_likelihood = 0
-  prediction_prob_history = list() 
+  # prediction_prob_history = list() 
   
   for(t in 1:Time)
   {
@@ -175,19 +175,20 @@ ADF_sampling_filter <- function(data, parameters, MC_samples = 1000)
     
     log_likelihood = log_likelihood + ADF_correction_output$log_likelihood_increment
     
-    if(L==1){
-      prediction_prob_history[[t]] = rbind(1-ADF_correction_output$prediction_prob, 
-                                             ADF_correction_output$prediction_prob)
-    }else{
-      prediction_prob_history[[t]] = rbind((1-apply(ADF_correction_output$prediction_prob, 2, sum)), 
-                                           ADF_correction_output$prediction_prob)
-    }
+    # if(L==1){
+    #   prediction_prob_history[[t]] = rbind(1-ADF_correction_output$prediction_prob, 
+    #                                          ADF_correction_output$prediction_prob)
+    # }else{
+    #   prediction_prob_history[[t]] = rbind((1-apply(ADF_correction_output$prediction_prob, 2, sum)), 
+    #                                        ADF_correction_output$prediction_prob)
+    # }
     
       
   }
   
   return(list(log_likelihood = log_likelihood, 
-              a_history = a_history, P_history = P_history, prediction_prob_history = prediction_prob_history,
+              a_history = a_history, P_history = P_history, 
+              # prediction_prob_history = prediction_prob_history,
               sampling_history = sampling_history,
               running_time = as.numeric(Sys.time() - start_time, units = "secs")))
 }
