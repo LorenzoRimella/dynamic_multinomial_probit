@@ -101,7 +101,7 @@ results <- future_lapply(1:n_replicates, function(repl) {
     type = "EP",
     filter_running_time = EP_filter_sampler_output$running_time,
     log_likelihood = EP_filter_sampler_output$log_likelihood,
-    filter_distance_from_exact = mean_wasserstein_sampling(EP_filter_sampler_output$sampling_history, ADF_filter_sampler_output$sampling_history),
+    filter_distance_from_reference = mean_wasserstein_sampling(EP_filter_sampler_output$sampling_history, ADF_filter_sampler_output$sampling_history),
     other = mean(array(unlist(EP_filter_sampler_output$sweep_history)))
   )
   
@@ -110,7 +110,7 @@ results <- future_lapply(1:n_replicates, function(repl) {
     type = "ADF",
     filter_running_time = ADF_filter_sampler_output$running_time,
     log_likelihood = ADF_filter_sampler_output$log_likelihood,
-    filter_distance_from_exact = 0,
+    filter_distance_from_reference = 0,
     other = 0
   )
   
@@ -119,7 +119,7 @@ results <- future_lapply(1:n_replicates, function(repl) {
     type = "SMC",
     filter_running_time = SMC_filter_sampler_output$running_time,
     log_likelihood = SMC_filter_sampler_output$log_likelihood,
-    filter_distance_from_exact = mean_wasserstein_sampling(SMC_filter_sampler_output$sampling_history, ADF_filter_sampler_output$sampling_history),
+    filter_distance_from_reference = mean_wasserstein_sampling(SMC_filter_sampler_output$sampling_history, ADF_filter_sampler_output$sampling_history),
     other = mean(array(unlist(SMC_filter_sampler_output$ESS_history)))
   )
   
