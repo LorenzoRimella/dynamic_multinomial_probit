@@ -18,7 +18,7 @@ SMC_sampling_filter <- function(data, parameters, MC_samples)
   
   for(t in 1:Time)
   {
-    print(t)
+    
     sampling_prediction = parameters$G %*% sampling_history[t,,] + t(mvrnorm(n = MC_samples, 0*parameters$a_0, parameters$W))
     
     y_t = data$Y[[t]]

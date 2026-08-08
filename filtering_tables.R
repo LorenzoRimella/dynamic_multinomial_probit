@@ -29,7 +29,7 @@ summarise_filtering_results <- function(file, reference_type) {
     summarise(
       across(
         c(filter_time, delta_log_likelihood, mean_marginal_W2),
-        list(mean = mean, sd = sd),
+        list(mean = base::mean, sd = stats::sd),
         .names = "{.col}_{.fn}"
       ),
       .groups = "drop"
