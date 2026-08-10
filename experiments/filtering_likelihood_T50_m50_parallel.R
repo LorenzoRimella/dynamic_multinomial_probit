@@ -109,7 +109,17 @@ results <- future_lapply(1:n_replicates, function(repl) {
     filter_distance_from_reference = 0,
     other = 0
   )
+
+  replicate_result <- rbind(df_EP, df_ADF)
   
+  ## Save immediately when this replicate finishes
+  saveRDS(
+    replicate_result,
+    file = file.path(
+      directory_name,
+      paste0(name_simulation, "_replicate_", repl, ".rds")
+    )
+  )
   
   return(list(df_EP, df_ADF))
 }, future.seed=TRUE)

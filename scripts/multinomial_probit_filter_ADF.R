@@ -123,7 +123,7 @@ ADF_sampling_correction <- function(x_t, y_t, a_t_tm1, P_t_tm1, parameters, MC_s
   log_likelihood_increment = log(Phi(SUN_correction_parameters_list$gamma_t, 
                                      SUN_correction_parameters_list$Gamma_t))
   
-  SUN_correction_prediction_parameters_list = SUN_correction_prediction_parameters(x_t, a_t_tm1, P_t_tm1, parameters)
+  # SUN_correction_prediction_parameters_list = SUN_correction_prediction_parameters(x_t, a_t_tm1, P_t_tm1, parameters)
   # prediction_prob = sapply(seq(1, m_t), function(i) sapply(seq(1, L), 
   #                                                          function(j)  Phi(SUN_correction_prediction_parameters_list$gamma_t[[i]][[j]], 
   #                                                                           SUN_correction_prediction_parameters_list$Gamma_t[[i]][[j]])))

@@ -123,6 +123,17 @@ results <- future_lapply(1:n_replicates, function(repl) {
     other = mean(array(unlist(SMC_filter_sampler_output$ESS_history)))
   )
   
+  replicate_result <- rbind(rbind(df_EP, df_ADF), df_SMC)
+  
+  ## Save immediately when this replicate finishes
+  saveRDS(
+    replicate_result,
+    file = file.path(
+      directory_name,
+      paste0(name_simulation, "_replicate_", repl, ".rds")
+    )
+  )
+  
   
   return(list(df_EP, df_ADF, df_SMC))
 }, future.seed=TRUE)

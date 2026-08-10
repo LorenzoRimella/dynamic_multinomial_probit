@@ -45,10 +45,13 @@ log_Psi<- function(r_Psi, Q_Psi)
   return( (1/2)*(t(r_Psi)%*% solve(Q_Psi) %*% r_Psi) + (p/2)*log(2*pi) - (1/2)*log(abs(det(Q_Psi))))
 }
 
-site_i_update <- function(i, x_t, y_t, r, Q, logZ, parameters, MC_samples)
+site_i_update <- function(i, x_t, y_t, r, Q, logZ, parameters, MC_samples, sumQ, sumr)
 {
-  r_minus_i = t(t(apply(r[-i,], 2, sum)))
-  Q_minus_i = apply(Q[-i,,], MARGIN = c(2,3), sum)
+  # r_minus_i = t(t(apply(r[-i,], 2, sum)))
+  # Q_minus_i = apply(Q[-i,,], MARGIN = c(2,3), sum)
+  
+  Q_minus_i = sumQ - Q[i,,]
+  r_minus_i = sumr - r[i,]
   
   Q_minus_i = (Q_minus_i+t(Q_minus_i))/2
   
@@ -63,23 +66,32 @@ site_i_update <- function(i, x_t, y_t, r, Q, logZ, parameters, MC_samples)
     Q[i,,] = solve(Sigma_i) - Q_minus_i
     r[i,]  = (Q_minus_i + Q[i,,]) %*% mu_i - r_minus_i
     
-    r_EP = t(t(apply(r, 2, sum)))
-    Q_EP = apply(Q, MARGIN = c(2,3), sum)
+    # r_EP = t(t(apply(r, 2, sum)))
+    # Q_EP = apply(Q, MARGIN = c(2,3), sum)
+    
+    sumQ = Q_minus_i + Q[i,,] 
+    sumr = r_minus_i + r[i,]
+    
+    r_EP = sumr
+    Q_EP = sumQ
     
     logZ_i = log_Psi(r_EP, Q_EP) - log_Psi(r_minus_i, Q_minus_i) - log(Phi(SUN_parameters_list_i$gamma_t, SUN_parameters_list_i$Gamma_t))
     logZ[i-1]  = logZ_i
   }
   
-  return(list(r = r, Q = Q, logZ = logZ))
+  return(list(r = r, Q = Q, logZ = logZ, sumQ = sumQ, sumr = sumr))
 }
 
-EP_log_likelihood_increments <- function(r, Q, logZ)
+EP_log_likelihood_increments <- function(r, Q, logZ, sumQ, sumr)
 {
   Q_0 = Q[1,,]
   r_0 = r[1,]
   
-  r_sum = t(t(apply(r, 2, sum)))
-  Q_sum = apply(Q, MARGIN = c(2,3), sum)
+  # r_sum = t(t(apply(r, 2, sum)))
+  # Q_sum = apply(Q, MARGIN = c(2,3), sum)
+  
+  r_sum = sumr
+  Q_sum = sumQ
   
   log_likelihood_increment = log_Psi(r_sum, Q_sum) - log_Psi(r_0, Q_0) - sum(logZ)
   
@@ -107,20 +119,30 @@ EP_sampling_correction <- function(x_t, y_t, a_t_tm1, P_t_tm1, parameters, EP_ma
   iteration = 1
   max_diff_vec = array(NA, dim = c(EP_max_iterations+1))
   max_diff= 100
+  
+  sumQ = apply(Q, MARGIN = c(2,3), sum)
+  sumr = t(t(apply(r, 2, sum)))
+  
+  sumQ_current = sumQ
+  sumr_current = sumr
+    
   while((iteration<EP_max_iterations)&(max_diff>tol))
   {
     for(i in 2:(m_t+1))
     { 
-      EP_parameters = site_i_update(i, x_t, y_t, r, Q, logZ, parameters, MC_samples)
+      EP_parameters = site_i_update(i, x_t, y_t, r, Q, logZ, parameters, MC_samples, sumQ, sumr)
       
       Q = EP_parameters$Q
       r = EP_parameters$r
       
+      sumQ = EP_parameters$sumQ
+      sumr = EP_parameters$sumr
+      
       logZ = EP_parameters$logZ
     } 
     
-    new_EP_loglike = EP_log_likelihood_increments(r, Q, logZ)
-    old_EP_loglike = EP_log_likelihood_increments(r_current, Q_current, logZ_current)
+    new_EP_loglike = EP_log_likelihood_increments(r, Q, logZ, sumQ, sumr)
+    old_EP_loglike = EP_log_likelihood_increments(r_current, Q_current, logZ_current, sumQ_current, sumr_current)
     max_diff_vec[iteration] = abs(new_EP_loglike - old_EP_loglike) /
       max(abs(old_EP_loglike), .Machine$double.eps)
     
@@ -129,6 +151,8 @@ EP_sampling_correction <- function(x_t, y_t, a_t_tm1, P_t_tm1, parameters, EP_ma
     Q_current = Q
     r_current = r
     logZ_current = logZ
+    sumQ_current = sumQ
+    sumr_current = sumr
     iteration = iteration+1
   }
   
