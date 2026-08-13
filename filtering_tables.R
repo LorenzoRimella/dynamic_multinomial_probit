@@ -20,7 +20,7 @@ summarise_filtering_results <- function(file, reference_type) {
       replicate,
       type,
       filter_time = filter_running_time,
-      delta_log_likelihood = log_likelihood - reference_log_likelihood,
+      delta_log_likelihood = log_likelihood - reference_log_likelihood, #abs(log_likelihood - reference_log_likelihood)/abs(reference_log_likelihood),
       mean_marginal_W2 = filter_distance_from_reference
     )
 
@@ -55,6 +55,27 @@ summarise_filtering_results <- function(file, reference_type) {
   print(xtable(formatted_summary), include.rownames = FALSE)
   invisible(numeric_summary)
 }
+
+# # Combine RDS
+# 
+# directory_name <- "data/filtering_comparison_p_9_mt_10_L_3_Time_10/"
+# 
+# 
+# # Find all completed replicate files
+# files <- list.files(
+#   directory_name,
+#   full.names = TRUE
+# )
+# 
+# data_frame_output <- do.call(
+#   rbind,
+#   lapply(files, readRDS)
+# )
+# 
+# save(data_frame_output, file =   paste0(
+#   "data/filtering_comparison_p_9_mt_10_L_3_Time_10/",
+#   "filtering_comparison_p_9_mt_10_L_3_Time_10_data.Rdata"
+# ))
 
 summary_T10_m10 <- summarise_filtering_results(
   paste0(

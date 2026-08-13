@@ -72,11 +72,11 @@ sliding_window = Time + 1
 
 set.seed(12345)
   
-EP_filter_sampler_output   = EP_sampling_filter(data_multinomial_probit, parameters, EP_max_iterations, MC_samples, tol)
+EP_filter_sampler_output    = EP_sampling_filter(data_multinomial_probit, parameters, EP_max_iterations, MC_samples, tol)
   
 ADF_filter_sampler_output   = ADF_sampling_filter(data_multinomial_probit, parameters, MC_samples)
   
-exact_filter_sampler_output   = exact_sampling_filter(data_multinomial_probit, parameters, sliding_window, MC_samples)
+exact_filter_sampler_output = exact_sampling_filter(data_multinomial_probit, parameters, sliding_window, MC_samples)
   
 SMC_filter_sampler_output   = SMC_sampling_filter(data_multinomial_probit, parameters, MC_samples)
 

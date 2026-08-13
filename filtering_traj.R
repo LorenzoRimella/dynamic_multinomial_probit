@@ -3,11 +3,11 @@ library(dplyr)
 library(ggplot2)
 
 # T = 10, lambda_m = 10
-load("../data/filtering_trajectory_p_9_mt_4_L_3_Time_3/filtering_trajectory_p_9_mt_4_L_3_Time_3_data_multinomial_probit_exact_filter.Rdata")
-load("../data/filtering_trajectory_p_9_mt_4_L_3_Time_3/filtering_trajectory_p_9_mt_4_L_3_Time_3_data_multinomial_probit_SMC_filter.Rdata")
-load("../data/filtering_trajectory_p_9_mt_4_L_3_Time_3/filtering_trajectory_p_9_mt_4_L_3_Time_3_data_multinomial_probit_ADF_filter.Rdata")
-load("../data/filtering_trajectory_p_9_mt_4_L_3_Time_3/filtering_trajectory_p_9_mt_4_L_3_Time_3_data_multinomial_probit_EP_filter.Rdata")
-load("../data/filtering_trajectory_p_9_mt_4_L_3_Time_3/filtering_trajectory_p_9_mt_4_L_3_Time_3_data_multinomial_probit_single.Rdata")
+load("data/filtering_trajectory_p_9_mt_2_L_3_Time_2/filtering_trajectory_p_9_mt_2_L_3_Time_2_data_multinomial_probit_exact_filter.Rdata")
+load("data/filtering_trajectory_p_9_mt_2_L_3_Time_2/filtering_trajectory_p_9_mt_2_L_3_Time_2_data_multinomial_probit_SMC_filter.Rdata")
+load("data/filtering_trajectory_p_9_mt_2_L_3_Time_2/filtering_trajectory_p_9_mt_2_L_3_Time_2_data_multinomial_probit_ADF_filter.Rdata")
+load("data/filtering_trajectory_p_9_mt_2_L_3_Time_2/filtering_trajectory_p_9_mt_2_L_3_Time_2_data_multinomial_probit_EP_filter.Rdata")
+load("data/filtering_trajectory_p_9_mt_2_L_3_Time_2/filtering_trajectory_p_9_mt_2_L_3_Time_2_data_multinomial_probit_single.Rdata")
 
 Time <- length(data_multinomial_probit$Y)
 
@@ -112,10 +112,10 @@ ggsave("figures/traj_T10_m10.png", plot = gg1, width = 10, height = 6, dpi = 300
 
 
 # T = 50, lambda_m = 10
-load("data/filtering_trajectory_p_9_mt_10_L_3_Time_50/filtering_trajectory_p_9_mt_10_L_3_Time_50_data_multinomial_probit_SMC_filter.Rdata")
-load("data/filtering_trajectory_p_9_mt_10_L_3_Time_50/filtering_trajectory_p_9_mt_10_L_3_Time_50_data_multinomial_probit_ADF_filter.Rdata")
-load("data/filtering_trajectory_p_9_mt_10_L_3_Time_50/filtering_trajectory_p_9_mt_10_L_3_Time_50_data_multinomial_probit_EP_filter.Rdata")
-load("data/filtering_trajectory_p_9_mt_10_L_3_Time_50/filtering_trajectory_p_9_mt_10_L_3_Time_50_data_multinomial_probit_single.Rdata")
+load("data/filtering_trajectory_p_9_mt_2_L_3_Time_4/filtering_trajectory_p_9_mt_2_L_3_Time_4_data_multinomial_probit_SMC_filter.Rdata")
+load("data/filtering_trajectory_p_9_mt_2_L_3_Time_4/filtering_trajectory_p_9_mt_2_L_3_Time_4_data_multinomial_probit_ADF_filter.Rdata")
+load("data/filtering_trajectory_p_9_mt_2_L_3_Time_4/filtering_trajectory_p_9_mt_2_L_3_Time_4_data_multinomial_probit_EP_filter.Rdata")
+load("data/filtering_trajectory_p_9_mt_2_L_3_Time_4/filtering_trajectory_p_9_mt_2_L_3_Time_4_data_multinomial_probit_single.Rdata")
 
 Time <- length(data_multinomial_probit$Y)
 
@@ -204,14 +204,14 @@ ggsave("figures/traj_T50_m10.pdf", plot = gg2, width = 10, height = 6, units = "
 ggsave("figures/traj_T50_m10.png", plot = gg2, width = 10, height = 6, dpi = 300, units = "in")
 
 # T = 50, lambda_m = 50
-load("data/filtering_trajectory_p_9_mt_50_L_3_Time_50/filtering_trajectory_p_9_mt_50_L_3_Time_50_data_multinomial_probit_ADF_filter.Rdata")
-load("data/filtering_trajectory_p_9_mt_50_L_3_Time_50/filtering_trajectory_p_9_mt_50_L_3_Time_50_data_multinomial_probit_EP_filter.Rdata")
-load("data/filtering_trajectory_p_9_mt_50_L_3_Time_50/filtering_trajectory_p_9_mt_50_L_3_Time_50_data_multinomial_probit_single.Rdata")
+load("data/filtering_trajectory_p_9_mt_4_L_3_Time_4/filtering_trajectory_p_9_mt_4_L_3_Time_4_data_multinomial_probit_ADF_filter.Rdata")
+load("data/filtering_trajectory_p_9_mt_4_L_3_Time_4/filtering_trajectory_p_9_mt_4_L_3_Time_4_data_multinomial_probit_EP_filter.Rdata")
+load("data/filtering_trajectory_p_9_mt_4_L_3_Time_4/filtering_trajectory_p_9_mt_4_L_3_Time_4_data_multinomial_probit_single.Rdata")
 
 # PLOT FILTERING
 # Create a data frame for plotting
 
-Time = 50
+Time = 4
 data_list <- list()
 i=1
 for (j in indeces) {

@@ -67,9 +67,9 @@ MC_samples = 1e4
 
 set.seed(12345)
   
-EP_filter_sampler_output   = EP_sampling_filter(data_multinomial_probit, parameters, EP_max_iterations, MC_samples, tol)
+EP_filter_sampler_output  = EP_sampling_filter(data_multinomial_probit, parameters, EP_max_iterations, MC_samples, tol)
   
-ADF_filter_sampler_output   = ADF_sampling_filter(data_multinomial_probit, parameters, MC_samples)
+ADF_filter_sampler_output = ADF_sampling_filter(data_multinomial_probit, parameters, MC_samples)
   
 save(data_multinomial_probit, file = paste(paste(directory_name, sep = "", 
                                                  name_simulation), sep = "", "_data_multinomial_probit_single.Rdata"))
