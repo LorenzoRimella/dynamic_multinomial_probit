@@ -20,13 +20,14 @@ library(future)
 library(future.apply)
 
 # Simulation setting
-run_args <- commandArgs(trailingOnly = TRUE)
-if (length(run_args) != 1L || !grepl("^(10|30|60)$", run_args[[1L]])) {
-  stop("Usage: Rscript repeated_EM_Sigma_parallel.R {10|30|60}")
-}
+# run_args <- commandArgs(trailingOnly = TRUE)
+# if (length(run_args) != 1L || !grepl("^(10|30|60)$", run_args[[1L]])) {
+#   stop("Usage: Rscript repeated_EM_Sigma_parallel.R {10|30|60}")
+# }
 
 L = 3
-Time = as.integer(run_args[[1L]])
+# Time = as.integer(run_args[[1L]])
+Time = 30 #as.integer(run_args[[1L]])
 
 p_X = 2
 p_Y = 3
@@ -89,12 +90,14 @@ EP_sampling_filter_to_use <- function(data, parameters)
 }
 
 # Detect CPUs from SLURM environment
-slurm_cpus <- as.integer(Sys.getenv("SLURM_CPUS_PER_TASK", unset = 1))
+# slurm_cpus <- as.integer(Sys.getenv("SLURM_CPUS_PER_TASK", unset = 1))
+# 
+# # Fall back to available cores if SLURM variable not set
+# if (is.na(slurm_cpus) || slurm_cpus < 1) {
+#   slurm_cpus <- parallel::detectCores(logical = FALSE)
+# }
 
-# Fall back to available cores if SLURM variable not set
-if (is.na(slurm_cpus) || slurm_cpus < 1) {
-  slurm_cpus <- parallel::detectCores(logical = FALSE)
-}
+slurm_cpus <- parallel::detectCores()-2
 
 message("Using ", slurm_cpus, " workers for parallel processing.")
 

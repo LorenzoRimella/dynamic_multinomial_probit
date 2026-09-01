@@ -20,7 +20,7 @@ summarise_filtering_results <- function(file, reference_type) {
       replicate,
       type,
       filter_time = filter_running_time,
-      delta_log_likelihood = log_likelihood - reference_log_likelihood, #abs(log_likelihood - reference_log_likelihood)/abs(reference_log_likelihood),
+      delta_log_likelihood = abs(log_likelihood - reference_log_likelihood)/abs(reference_log_likelihood),
       mean_marginal_W2 = filter_distance_from_reference
     )
 
