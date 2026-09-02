@@ -85,9 +85,9 @@ message("Using ", slurm_cpus, " workers for parallel processing.")
 
 plan(multisession, workers = slurm_cpus)
 
-n_replicates = 48
+# n_replicates = 48
 
-replicates_list = c(3, 4, 6, 7, 10,
+replicates_list = c( 3,  4,  6,  7, 10,
                     12, 13, 14, 15, 17, 18, 19, 
                     21, 24, 26, 28, 30, 
                     33, 34, 36, 37, 38, 40, 

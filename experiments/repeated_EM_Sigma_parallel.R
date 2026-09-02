@@ -27,7 +27,7 @@ library(future.apply)
 
 L = 3
 # Time = as.integer(run_args[[1L]])
-Time = 30 #as.integer(run_args[[1L]])
+Time = 60 #as.integer(run_args[[1L]])
 
 p_X = 2
 p_Y = 3
