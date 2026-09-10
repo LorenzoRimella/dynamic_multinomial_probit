@@ -70,7 +70,11 @@ MC_samples = 1e4
 
 sliding_window = Time + 1
 
-set.seed(12345)
+repl = 1
+set.seed(12345+repl)
+message("Replication ", repl)
+
+data_multinomial_probit = simulator_given_covariates(data_multinomial_probit, parameters, hyperparameters, Time)
   
 EP_filter_sampler_output    = EP_sampling_filter(data_multinomial_probit, parameters, EP_max_iterations, MC_samples, tol)
   

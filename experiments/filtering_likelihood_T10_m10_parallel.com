@@ -1,9 +1,9 @@
 #!/bin/bash
 #SBATCH --job-name=filtering_T10_m10
-#SBATCH --time=72:00:00
+#SBATCH --time=96:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=48
+#SBATCH --cpus-per-task=30
 #SBATCH --partition=g100_usr_pmem
 #SBATCH --qos=g100_qos_lprod
 #SBATCH --mem=64G

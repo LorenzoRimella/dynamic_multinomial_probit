@@ -171,3 +171,4 @@ tail_diagnostic <- lapply(times, function(Time) {
 
 tail_diagnostic <- do.call(rbind, tail_diagnostic)
 print(tail_diagnostic, row.names = FALSE, digits = 3)
+
