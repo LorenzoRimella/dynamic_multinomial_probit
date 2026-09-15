@@ -56,26 +56,26 @@ summarise_filtering_results <- function(file, reference_type) {
   invisible(numeric_summary)
 }
 
-# # Combine RDS
+# # # Combine RDS
+# # 
+# directory_name <- "data/filtering_comparison_p_9_mt_10_L_3_Time_10/"
 # 
-directory_name <- "data/filtering_comparison_p_9_mt_10_L_3_Time_10/"
-
-
-# Find all completed replicate files
-files <- list.files(
-  directory_name,
-  full.names = TRUE
-)
-
-data_frame_output <- do.call(
-  rbind,
-  lapply(files, readRDS)
-)
-
-save(data_frame_output, file =   paste0(
-  "data/filtering_comparison_p_9_mt_10_L_3_Time_10/",
-  "filtering_comparison_p_9_mt_10_L_3_Time_10_data.Rdata"
-))
+# 
+# # Find all completed replicate files
+# files <- list.files(
+#   directory_name,
+#   full.names = TRUE
+# )
+# 
+# data_frame_output <- do.call(
+#   rbind,
+#   lapply(files, readRDS)
+# )
+# 
+# save(data_frame_output, file =   paste0(
+#   "data/filtering_comparison_p_9_mt_10_L_3_Time_10/",
+#   "filtering_comparison_p_9_mt_10_L_3_Time_10_data.Rdata"
+# ))
 
 summary_T10_m10 <- summarise_filtering_results(
   paste0(
