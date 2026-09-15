@@ -40,7 +40,7 @@ The scripts in `experiments/` generate the saved output consumed by the scripts 
 - `repeated_EM_Sigma_parallel.R` runs one covariance-recovery regime; pass `10`, `30`, or `60` as its command-line argument.
 - `expedia_inference.com` is a SLURM template that runs the 500-iteration Expedia EM fit on the first 50 days through the root-level `expedia_inference.R` script.
 
-The filtering comparison uses 96 independent state and response replications with a common covariate design and realized sample-size sequence. The covariance-recovery study uses 48 replications. Parallelization is across replications only.
+The filtering comparison uses 48 independent state and response replications with a common covariate design and realized sample-size sequence. The covariance-recovery study uses 48 replications. Parallelization is across replications only.
 
 ## Software requirements
 

@@ -20,14 +20,14 @@ library(future)
 library(future.apply)
 
 # Simulation setting
-# run_args <- commandArgs(trailingOnly = TRUE)
-# if (length(run_args) != 1L || !grepl("^(10|30|60)$", run_args[[1L]])) {
-#   stop("Usage: Rscript repeated_EM_Sigma_parallel.R {10|30|60}")
-# }
+run_args <- commandArgs(trailingOnly = TRUE)
+if (length(run_args) != 1L || !grepl("^(10|30|60)$", run_args[[1L]])) {
+  stop("Usage: Rscript repeated_EM_Sigma_parallel.R {10|30|60}")
+}
 
 L = 3
-# Time = as.integer(run_args[[1L]])
-Time = 60 #as.integer(run_args[[1L]])
+Time = as.integer(run_args[[1L]])
+Time = as.integer(run_args[[1L]])
 
 p_X = 2
 p_Y = 3
