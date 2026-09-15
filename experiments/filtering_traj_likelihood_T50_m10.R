@@ -15,6 +15,7 @@ source("../scripts/multinomial_probit_filter_EP.R")
 source("../scripts/multinomial_probit_filter_SMC.R")
 
 source("../scripts/multinomial_probit_filter_ADF.R")
+source("../scripts/multinomial_probit_filter_exact.R")
 
 # Simulation setting
 L = 3
@@ -26,7 +27,9 @@ p = p_X*L + p_Y
 
 expected_m_t = 10
 
-name_init = "filtering_trajectory_p_"
+repl = 2
+
+name_init = paste("repl_", repl, "_filtering_trajectory_p_", sep="")
 
 output_name = sim_name(name_init, L, Time, p, expected_m_t)
 name_simulation = output_name$name
@@ -67,9 +70,14 @@ EP_max_iterations = 11
 tol = 1e-3
 MC_samples = 1e4
 
-set.seed(12345)
+sliding_window = Time + 1
+
+set.seed(12345+repl)
+message("Replication ", repl)
+
+data_multinomial_probit = simulator_given_covariates(data_multinomial_probit, parameters, hyperparameters, Time)
   
-EP_filter_sampler_output   = EP_sampling_filter(data_multinomial_probit, parameters, EP_max_iterations, MC_samples, tol)
+EP_filter_sampler_output    = EP_sampling_filter(data_multinomial_probit, parameters, EP_max_iterations, MC_samples, tol)
   
 ADF_filter_sampler_output   = ADF_sampling_filter(data_multinomial_probit, parameters, MC_samples)
   

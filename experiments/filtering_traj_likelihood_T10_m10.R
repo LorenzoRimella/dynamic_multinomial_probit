@@ -27,7 +27,9 @@ p = p_X*L + p_Y
 
 expected_m_t = 10
 
-name_init = "filtering_trajectory_p_"
+repl = 29
+
+name_init = paste("repl_", repl, "_filtering_trajectory_p_", sep="")
 
 output_name = sim_name(name_init, L, Time, p, expected_m_t)
 name_simulation = output_name$name
@@ -70,7 +72,6 @@ MC_samples = 1e4
 
 sliding_window = Time + 1
 
-repl = 1
 set.seed(12345+repl)
 message("Replication ", repl)
 

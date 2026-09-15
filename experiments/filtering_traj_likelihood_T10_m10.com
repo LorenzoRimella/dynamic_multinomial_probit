@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=trajectory_T10_m10
-#SBATCH --time=72:00:00
+#SBATCH --time=96:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
@@ -13,4 +13,4 @@
 module load profile/bioinf
 module load autoload r
 
-Rscript experiments/filtering_traj_likelihood_T10_m10.R
+Rscript DMP_cineca/experiments/filtering_traj_likelihood_T10_m10.R
