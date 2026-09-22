@@ -9,12 +9,12 @@ if (length(script_path)) {
   message("Script path not detected. Working directory not changed.")
 }
 
-source("scripts/utils.R")
-source("scripts/model.R")
-source("scripts/multinomial_probit_filter_EP.R")
-source("scripts/multinomial_probit_filter_ADF.R")
-source("scripts/multinomial_probit_gaussian_smoothing.R")
-source("scripts/multinomial_probit_EM_Sigma.R")
+source("../scripts/utils.R")
+source("../scripts/model.R")
+source("../scripts/multinomial_probit_filter_EP.R")
+source("../scripts/multinomial_probit_filter_ADF.R")
+source("../scripts/multinomial_probit_gaussian_smoothing.R")
+source("../scripts/multinomial_probit_EM_Sigma.R")
 
 library(future)
 library(future.apply)
