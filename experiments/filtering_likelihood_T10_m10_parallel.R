@@ -85,16 +85,10 @@ message("Using ", slurm_cpus, " workers for parallel processing.")
 
 plan(multisession, workers = slurm_cpus)
 
-# n_replicates = 48
+n_replicates = 48
 
-replicates_list = c( 3,  4,  6,  7, 10,
-                    12, 13, 14, 15, 17, 18, 19, 
-                    21, 24, 26, 28, 30, 
-                    33, 34, 36, 37, 38, 40, 
-                    41, 43, 45, 47)
 
-# results <- future_lapply(1:n_replicates, function(repl) {
-results <- future_lapply(replicates_list, function(repl) {
+results <- future_lapply(1:n_replicates, function(repl) {
   set.seed(12345+repl)
   message("Replication ", repl)
 
